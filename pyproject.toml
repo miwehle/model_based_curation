@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "model-based-curation"
+version = "0.1.0"
+description = "Projekt fuer modellbasierte Datenkuratierung"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "datasets",
+    "pyyaml",
+    "torch",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
