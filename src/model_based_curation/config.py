@@ -8,18 +8,15 @@ import torch
 
 @dataclass(frozen=True, kw_only=True)
 class SplitConfig:
-    dataset_path: str
-    checkpoint_path: str
-    output_dir: str
+    dataset: str
+    checkpoint: str
     upper_bounds: tuple[float, ...]
-    csv_delimiter: str = ","
-    loss_decimal_separator: str = "."
+    csv_delimiter: str = ";"
+    loss_decimal_separator: str = ","
     batch_size: int = 32
     sort_by_loss_desc: bool = False
     device: str | torch.device | None = None
     use_bf16: bool = False
-    local_dataset_dir: str | None = None
-    copy_buckets_to_drive_dir: str | None = None
     decode_from_loss: float | None = None
     overwrite_output: bool = False
 
@@ -32,21 +29,30 @@ class SplitConfig:
             raise ValueError("decode_from_loss must be non-negative.")
 
     @property
-    def resolved_dataset_path(self) -> Path:
-        return Path(self.local_dataset_dir or self.dataset_path)
+    def dataset_drive_path(self) -> Path:
+        return Path("/content/drive/MyDrive/nmt_lab/artifacts/datasets") / self.dataset
+
+    @property
+    def dataset_local_path(self) -> Path:
+        return Path("/content") / "nmt_lab" / "artifacts" / self.dataset
 
     @property
     def output_path(self) -> Path:
-        return Path(self.output_dir)
+        return self.dataset_local_path / "curation" / "loss_buckets"
+
+    @property
+    def drive_output_path(self) -> Path:
+        return (
+            Path("/content/drive/MyDrive/nmt_lab/artifacts")
+            / self.dataset
+            / "curation"
+            / "loss_buckets"
+        )
 
     @property
     def checkpoint_file(self) -> Path:
-        return Path(self.checkpoint_path)
-
-    @property
-    def copy_buckets_to_drive_path(self) -> Path | None:
         return (
-            None
-            if self.copy_buckets_to_drive_dir is None
-            else Path(self.copy_buckets_to_drive_dir)
+            Path("/content/drive/MyDrive/nmt_lab/artifacts/training_runs")
+            / self.checkpoint
+            / "checkpoint.pt"
         )

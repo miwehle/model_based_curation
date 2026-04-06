@@ -25,11 +25,25 @@ def _temp_dir(prefix: str) -> Path:
     return path
 
 
+def _patch_config_paths(
+    monkeypatch, *, dataset_dir: Path, output_dir: Path, drive_dir: Path, checkpoint_file: Path
+) -> None:
+    monkeypatch.setattr(
+        SplitConfig, "dataset_drive_path", property(lambda self: dataset_dir)
+    )
+    monkeypatch.setattr(
+        SplitConfig, "dataset_local_path", property(lambda self: dataset_dir)
+    )
+    monkeypatch.setattr(SplitConfig, "output_path", property(lambda self: output_dir))
+    monkeypatch.setattr(SplitConfig, "drive_output_path", property(lambda self: drive_dir))
+    monkeypatch.setattr(SplitConfig, "checkpoint_file", property(lambda self: checkpoint_file))
+
+
 def test_split_writes_log_file_and_copies_it_to_drive(monkeypatch, caplog):
     root_dir = _temp_dir("split_api")
     dataset_dir = root_dir / "dataset"
-    output_dir = root_dir / "output"
-    drive_dir = root_dir / "drive"
+    output_dir = root_dir / "local_artifacts" / "dataset" / "curation" / "loss_buckets"
+    drive_dir = root_dir / "drive_artifacts" / "dataset" / "curation" / "loss_buckets"
     Dataset.from_list([{"id": 1, "src_ids": [11], "tgt_ids": [99, 21, 0]}]).save_to_disk(
         str(dataset_dir)
     )
@@ -66,13 +80,18 @@ def test_split_writes_log_file_and_copies_it_to_drive(monkeypatch, caplog):
         "model_based_curation.api.BatchSeq2SeqLossScorer",
         lambda *args, **kwargs: _FakeScorer(),
     )
+    _patch_config_paths(
+        monkeypatch,
+        dataset_dir=dataset_dir,
+        output_dir=output_dir,
+        drive_dir=drive_dir,
+        checkpoint_file=root_dir / "checkpoint.pt",
+    )
 
     config = SplitConfig(
-        dataset_path=str(dataset_dir),
-        checkpoint_path=str(root_dir / "checkpoint.pt"),
-        output_dir=str(output_dir),
+        dataset="dataset",
+        checkpoint="run",
         upper_bounds=(0.5,),
-        copy_buckets_to_drive_dir=str(drive_dir),
     )
 
     with caplog.at_level(logging.INFO):
@@ -82,8 +101,8 @@ def test_split_writes_log_file_and_copies_it_to_drive(monkeypatch, caplog):
     drive_log_path = drive_dir / "split.log"
 
     assert output_paths[0].is_file()
-    assert _read_rows(output_paths[0]) == [
-        {"id": "1", "loss": "0.2", "src": "11", "tgt": "21|0"}
+    assert _read_rows(output_paths[0], delimiter=";") == [
+        {"id": "1", "loss": "0,2", "src": "11", "tgt": "21|0"}
     ]
     assert local_log_path.is_file()
     assert drive_log_path.is_file()
@@ -95,7 +114,7 @@ def test_split_writes_log_file_and_copies_it_to_drive(monkeypatch, caplog):
 def test_split_can_write_german_csv_format(monkeypatch):
     root_dir = _temp_dir("split_api_german_csv")
     dataset_dir = root_dir / "dataset"
-    output_dir = root_dir / "output"
+    output_dir = root_dir / "local_artifacts" / "dataset" / "curation" / "loss_buckets"
     Dataset.from_list([{"id": 1, "src_ids": [11], "tgt_ids": [99, 21, 0]}]).save_to_disk(
         str(dataset_dir)
     )
@@ -132,11 +151,17 @@ def test_split_can_write_german_csv_format(monkeypatch):
         "model_based_curation.api.BatchSeq2SeqLossScorer",
         lambda *args, **kwargs: _FakeScorer(),
     )
+    _patch_config_paths(
+        monkeypatch,
+        dataset_dir=dataset_dir,
+        output_dir=output_dir,
+        drive_dir=root_dir / "drive",
+        checkpoint_file=root_dir / "checkpoint.pt",
+    )
 
     config = SplitConfig(
-        dataset_path=str(dataset_dir),
-        checkpoint_path=str(root_dir / "checkpoint.pt"),
-        output_dir=str(output_dir),
+        dataset="dataset",
+        checkpoint="run",
         upper_bounds=(0.5,),
         csv_delimiter=";",
         loss_decimal_separator=",",
@@ -151,7 +176,7 @@ def test_split_can_write_german_csv_format(monkeypatch):
 def test_split_passes_bf16_setting_to_batch_scorer(monkeypatch):
     root_dir = _temp_dir("split_api_bf16")
     dataset_dir = root_dir / "dataset"
-    output_dir = root_dir / "output"
+    output_dir = root_dir / "local_artifacts" / "dataset" / "curation" / "loss_buckets"
     Dataset.from_list([{"id": 1, "src_ids": [11], "tgt_ids": [99, 21, 0]}]).save_to_disk(
         str(dataset_dir)
     )
@@ -186,6 +211,13 @@ def test_split_passes_bf16_setting_to_batch_scorer(monkeypatch):
     fake_translator_module = types.ModuleType("translator.inference")
     fake_translator_module.Translator = _FakeTranslator
     monkeypatch.setitem(sys.modules, "translator.inference", fake_translator_module)
+    _patch_config_paths(
+        monkeypatch,
+        dataset_dir=dataset_dir,
+        output_dir=output_dir,
+        drive_dir=root_dir / "drive",
+        checkpoint_file=root_dir / "checkpoint.pt",
+    )
 
     def _make_scorer(*args, **kwargs):
         del args
@@ -196,9 +228,8 @@ def test_split_passes_bf16_setting_to_batch_scorer(monkeypatch):
 
     split(
         SplitConfig(
-            dataset_path=str(dataset_dir),
-            checkpoint_path=str(root_dir / "checkpoint.pt"),
-            output_dir=str(output_dir),
+            dataset="dataset",
+            checkpoint="run",
             upper_bounds=(0.5,),
             use_bf16=True,
         )

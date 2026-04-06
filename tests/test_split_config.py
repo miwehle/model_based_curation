@@ -7,45 +7,48 @@ import torch
 from model_based_curation import SplitConfig
 
 
-def test_split_config_resolves_optional_local_dataset_and_drive_paths():
+def test_split_config_derives_conventional_paths_from_dataset_and_checkpoint():
     cfg = SplitConfig(
-        dataset_path="/drive/datasets/train",
-        checkpoint_path="/drive/checkpoints/model.pt",
-        output_dir="/content/loss_buckets",
+        dataset="iwslt2017_iwslt2017-de-en_train",
+        checkpoint="2eu_10tt_1eu_5tt_5nc_1eu_5tt",
         upper_bounds=(0.5, 1.5),
         batch_size=64,
         sort_by_loss_desc=True,
         device=torch.device("cuda"),
-        local_dataset_dir="/content/datasets/train",
-        copy_buckets_to_drive_dir="/drive/output/buckets",
         overwrite_output=True,
     )
 
-    assert cfg.resolved_dataset_path == Path("/content/datasets/train")
-    assert cfg.output_path == Path("/content/loss_buckets")
-    assert cfg.checkpoint_file == Path("/drive/checkpoints/model.pt")
-    assert cfg.copy_buckets_to_drive_path == Path("/drive/output/buckets")
+    assert cfg.dataset_drive_path == Path(
+        "/content/drive/MyDrive/nmt_lab/artifacts/datasets/iwslt2017_iwslt2017-de-en_train"
+    )
+    assert cfg.dataset_local_path == Path(
+        "/content/nmt_lab/artifacts/iwslt2017_iwslt2017-de-en_train"
+    )
+    assert cfg.output_path == Path(
+        "/content/nmt_lab/artifacts/iwslt2017_iwslt2017-de-en_train/curation/loss_buckets"
+    )
+    assert cfg.drive_output_path == Path(
+        "/content/drive/MyDrive/nmt_lab/artifacts/iwslt2017_iwslt2017-de-en_train/curation/loss_buckets"
+    )
+    assert cfg.checkpoint_file == Path(
+        "/content/drive/MyDrive/nmt_lab/artifacts/training_runs/2eu_10tt_1eu_5tt_5nc_1eu_5tt/checkpoint.pt"
+    )
     assert cfg.sort_by_loss_desc is True
 
 
-def test_split_config_uses_original_dataset_path_when_no_local_copy_is_set():
-    cfg = SplitConfig(
-        dataset_path="/drive/datasets/train",
-        checkpoint_path="/drive/checkpoints/model.pt",
-        output_dir="/content/loss_buckets",
-        upper_bounds=(0.5, 1.5),
-    )
+def test_split_config_uses_german_csv_defaults():
+    cfg = SplitConfig(dataset="dataset", checkpoint="run", upper_bounds=(0.5, 1.5))
 
-    assert cfg.resolved_dataset_path == Path("/drive/datasets/train")
-    assert cfg.copy_buckets_to_drive_path is None
+    assert cfg.csv_delimiter == ";"
+    assert cfg.loss_decimal_separator == ","
+    assert cfg.overwrite_output is False
 
 
 def test_split_config_validates_csv_format_options():
     try:
         SplitConfig(
-            dataset_path="/drive/datasets/train",
-            checkpoint_path="/drive/checkpoints/model.pt",
-            output_dir="/content/loss_buckets",
+            dataset="dataset",
+            checkpoint="run",
             upper_bounds=(0.5, 1.5),
             csv_delimiter="|",
         )
@@ -56,9 +59,8 @@ def test_split_config_validates_csv_format_options():
 
     try:
         SplitConfig(
-            dataset_path="/drive/datasets/train",
-            checkpoint_path="/drive/checkpoints/model.pt",
-            output_dir="/content/loss_buckets",
+            dataset="dataset",
+            checkpoint="run",
             upper_bounds=(0.5, 1.5),
             loss_decimal_separator=":",
         )
@@ -71,9 +73,8 @@ def test_split_config_validates_csv_format_options():
 
     try:
         SplitConfig(
-            dataset_path="/drive/datasets/train",
-            checkpoint_path="/drive/checkpoints/model.pt",
-            output_dir="/content/loss_buckets",
+            dataset="dataset",
+            checkpoint="run",
             upper_bounds=(0.5, 1.5),
             decode_from_loss=-0.1,
         )

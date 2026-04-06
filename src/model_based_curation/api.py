@@ -34,11 +34,9 @@ def _prepare_output_dir(output_dir: Path, *, overwrite: bool) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
 
-def _copy_dataset_if_requested(config: SplitConfig) -> Path:
-    source = Path(config.dataset_path)
-    target = config.resolved_dataset_path
-    if config.local_dataset_dir is None:
-        return source
+def _copy_dataset_to_local_artifacts(config: SplitConfig) -> Path:
+    source = config.dataset_drive_path
+    target = config.dataset_local_path
     if target.exists():
         return target
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -82,13 +80,13 @@ def _strip_leading_token(token_ids: list[int], token_id: int | None) -> list[int
 def split(config: SplitConfig) -> list[Path]:
     from translator.inference import Translator
 
-    dataset_path = _copy_dataset_if_requested(config)
+    dataset_path = _copy_dataset_to_local_artifacts(config)
     output_dir = config.output_path
     _prepare_output_dir(output_dir, overwrite=config.overwrite_output)
     log_path = output_dir / _LOG_FILE_NAME
 
     with _attach_file_logger(log_path):
-        _LOG.info("Preparing split for dataset %s", config.dataset_path)
+        _LOG.info("Preparing split for dataset %s", config.dataset)
         resolved_device = _resolve_device(config.device)
         _LOG.info(
             "Loading checkpoint %s on device %s", config.checkpoint_file, resolved_device
@@ -115,13 +113,9 @@ def split(config: SplitConfig) -> list[Path]:
             sort_by_loss_desc=config.sort_by_loss_desc,
         ).split_dataset(dataset_path, scorer, batch_size=config.batch_size)
 
-        if config.copy_buckets_to_drive_path is not None:
-            _LOG.info("Copying bucket files to %s", config.copy_buckets_to_drive_path)
-            _copy_buckets_to_drive(output_dir, config.copy_buckets_to_drive_path)
+        _LOG.info("Copying bucket files to %s", config.drive_output_path)
+        _copy_buckets_to_drive(output_dir, config.drive_output_path)
         _LOG.info("Split completed successfully")
-        if config.copy_buckets_to_drive_path is not None:
-            _LOG.info(
-                "Copying split log to %s", config.copy_buckets_to_drive_path / log_path.name
-            )
-            _copy_log_to_drive(log_path, config.copy_buckets_to_drive_path)
+        _LOG.info("Copying split log to %s", config.drive_output_path / log_path.name)
+        _copy_log_to_drive(log_path, config.drive_output_path)
     return output_paths

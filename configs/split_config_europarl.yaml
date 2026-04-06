@@ -1,6 +1,5 @@
-dataset_path: /content/drive/MyDrive/nmt_lab/artifacts/datasets/europarl_de-en_train_10000
-checkpoint_path: /content/drive/MyDrive/nmt_lab/artifacts/training_runs/europarl/checkpoint.pt
-output_dir: /content/loss_buckets
+dataset: europarl_de-en_train_10000
+checkpoint: europarl
 
 upper_bounds:
   - 0.5
@@ -11,6 +10,4 @@ upper_bounds:
 batch_size: 32
 sort_by_loss_desc: false
 device: cuda
-local_dataset_dir: /content/datasets/europarl_de-en_train_10000
-copy_buckets_to_drive_dir: /content/drive/MyDrive/nmt_lab/artifacts/loss_buckets
 overwrite_output: false
