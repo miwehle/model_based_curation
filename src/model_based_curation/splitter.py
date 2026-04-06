@@ -98,7 +98,7 @@ class Splitter:
         self._loss_decimal_separator = loss_decimal_separator
         self._decode_from_loss = decode_from_loss
         self._sort_by_loss_desc = sort_by_loss_desc
-        self._collate_s = self._h2d_s = self._forward_s = self._post_s = self._decode_s = self._write_s = 0.0; self._timed_batches = self._timed_examples = 0
+        self._collate_s = self._h2d_s = self._forward_s = self._post_s = self._decode_s = self._write_s = self._gpu_poll_s = self._batch_total_s = 0.0; self._timed_batches = self._timed_examples = 0
 
     def split_dataset(
         self,
@@ -124,7 +124,7 @@ class Splitter:
         batch: list[Example] = []
         processed_examples = 0
         batch_index = 0
-        self._collate_s = self._h2d_s = self._forward_s = self._post_s = self._decode_s = self._write_s = 0.0; self._timed_batches = self._timed_examples = 0
+        self._collate_s = self._h2d_s = self._forward_s = self._post_s = self._decode_s = self._write_s = self._gpu_poll_s = self._batch_total_s = 0.0; self._timed_batches = self._timed_examples = 0
 
         with ExitStack() as stack:
             files = [
@@ -168,12 +168,13 @@ class Splitter:
             processed_examples,
             len(output_paths),
         )
-        if self._timed_batches: _LOG.info("Timing summary batches=%s examples=%s collate_s=%.3f h2d_s=%.3f forward_s=%.3f post_s=%.3f decode_s=%.3f write_s=%.3f", self._timed_batches, self._timed_examples, self._collate_s, self._h2d_s, self._forward_s, self._post_s, self._decode_s, self._write_s)
+        if self._timed_batches: _LOG.info("Timing summary batches=%s examples=%s batch_total_s=%.3f collate_s=%.3f h2d_s=%.3f forward_s=%.3f post_s=%.3f decode_s=%.3f write_s=%.3f gpu_poll_s=%.3f batch_other_s=%.3f", self._timed_batches, self._timed_examples, self._batch_total_s, self._collate_s, self._h2d_s, self._forward_s, self._post_s, self._decode_s, self._write_s, self._gpu_poll_s, self._batch_total_s - self._collate_s - self._h2d_s - self._forward_s - self._post_s)
         return output_paths
 
     def _batch_message(
         self, batch_index: int, total_batches: int, batch_len: int, processed_examples: int
     ) -> str:
+        t_gpu = perf_counter()
         batch_label = (
             f"Scoring batch {batch_index}/{total_batches}"
             if total_batches
@@ -182,6 +183,7 @@ class Splitter:
         start_index = processed_examples + 1
         end_index = processed_examples + batch_len
         gpu_util = _get_gpu_util()
+        self._gpu_poll_s += perf_counter() - t_gpu
         gpu_text = f"{gpu_util}%" if gpu_util is not None else "-"
         return (
             f"{batch_label} ({batch_len} examples; rows {start_index}-{end_index}; "
@@ -202,6 +204,7 @@ class Splitter:
     ) -> None:
         if not batch:
             return
+        t_batch = perf_counter()
         losses = scorer.score_batch(batch)
         self._collate_s += float(getattr(scorer, "last_collate_s", 0.0)); self._h2d_s += float(getattr(scorer, "last_h2d_s", 0.0)); self._forward_s += float(getattr(scorer, "last_forward_s", 0.0)); self._timed_batches += 1; self._timed_examples += len(batch); t0 = perf_counter()
         if len(losses) != len(batch):
@@ -215,6 +218,7 @@ class Splitter:
             writers[writer_index].writerow(row)
             self._write_s += perf_counter() - t_write
         self._post_s += perf_counter() - t0
+        self._batch_total_s += perf_counter() - t_batch
 
     def _csv_row(
         self, example: Mapping[str, Any], loss: float
