@@ -20,10 +20,8 @@ def _resolve_device():
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def _prepare_output_dir(output_dir: Path, *, overwrite: bool) -> None:
+def _prepare_output_dir(output_dir: Path) -> None:
     if output_dir.exists():
-        if not overwrite:
-            raise ValueError(f"Output directory already exists: {output_dir}")
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -76,7 +74,7 @@ def split(config: SplitConfig) -> list[Path]:
 
     dataset_path = _copy_dataset_to_local_artifacts(config)
     output_dir = config.output_path
-    _prepare_output_dir(output_dir, overwrite=config.overwrite_output)
+    _prepare_output_dir(output_dir)
     log_path = output_dir / _LOG_FILE_NAME
 
     with _attach_file_logger(log_path):

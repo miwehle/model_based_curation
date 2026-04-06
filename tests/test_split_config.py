@@ -12,7 +12,6 @@ def test_split_config_derives_conventional_paths_from_dataset_and_checkpoint():
         upper_bounds=(0.5, 1.5),
         batch_size=64,
         sort_by_loss_desc=True,
-        overwrite_output=True,
     )
 
     assert cfg.dataset_drive_path == Path(
@@ -38,7 +37,6 @@ def test_split_config_uses_german_csv_defaults():
 
     assert cfg.csv_delimiter == ";"
     assert cfg.loss_decimal_separator == ","
-    assert cfg.overwrite_output is False
 
 
 def test_split_config_validates_csv_format_options():

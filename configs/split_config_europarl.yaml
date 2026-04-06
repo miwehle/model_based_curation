@@ -9,4 +9,3 @@ upper_bounds:
 
 batch_size: 32
 sort_by_loss_desc: false
-overwrite_output: false

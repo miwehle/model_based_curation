@@ -15,7 +15,6 @@ class SplitConfig:
     sort_by_loss_desc: bool = False
     use_bf16: bool = False
     decode_from_loss: float | None = None
-    overwrite_output: bool = False
 
     def __post_init__(self) -> None:
         if self.csv_delimiter not in {",", ";"}:
