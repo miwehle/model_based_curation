@@ -17,6 +17,7 @@ class SplitConfig:
     batch_size: int = 32
     sort_by_loss_desc: bool = False
     device: str | torch.device | None = None
+    use_bf16: bool = False
     local_dataset_dir: str | None = None
     copy_buckets_to_drive_dir: str | None = None
     decode_from_loss: float | None = None

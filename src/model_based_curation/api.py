@@ -100,6 +100,7 @@ def split(config: SplitConfig) -> list[Path]:
             device=translator.device,
             src_pad_id=translator.model.src_pad_idx,
             tgt_pad_id=translator.model.tgt_pad_idx,
+            use_bf16=config.use_bf16,
         )
         output_paths = Splitter(
             config.upper_bounds,

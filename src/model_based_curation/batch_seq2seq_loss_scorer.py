@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from contextlib import nullcontext
 from time import perf_counter
 from typing import Any
 
@@ -20,6 +21,7 @@ class BatchSeq2SeqLossScorer:
         device: str | torch.device,
         src_pad_id: int,
         tgt_pad_id: int,
+        use_bf16: bool = False,
         id_field: str = "id",
         src_field: str = "src_ids",
         tgt_field: str = "tgt_ids",
@@ -28,6 +30,7 @@ class BatchSeq2SeqLossScorer:
         self._device = torch.device(device)
         self._src_pad_id = src_pad_id
         self._tgt_pad_id = tgt_pad_id
+        self._use_bf16 = use_bf16
         self._id_field = id_field
         self._src_field = src_field
         self._tgt_field = tgt_field
@@ -51,7 +54,12 @@ class BatchSeq2SeqLossScorer:
             torch.cuda.synchronize(self._device)
         t2 = perf_counter()
         self._model.eval()
-        with torch.no_grad():
+        autocast_context = (
+            torch.autocast(device_type="cuda", dtype=torch.bfloat16)
+            if self._use_bf16 and self._device.type == "cuda"
+            else nullcontext()
+        )
+        with torch.inference_mode(), autocast_context:
             logits = self._model(src, tgt)
             per_token_loss = self._criterion(
                 logits.reshape(-1, logits.size(-1)),
