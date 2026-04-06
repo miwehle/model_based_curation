@@ -64,12 +64,16 @@ class Splitter:
         *,
         decode_src_text: Callable[[list[int]], str],
         decode_tgt_text: Callable[[list[int]], str],
+        csv_delimiter: str = ",",
+        loss_decimal_separator: str = ".",
         sort_by_loss_desc: bool = False,
     ) -> None:
         self._bounds = _validate_upper_bounds(upper_bounds)
         self._output_dir = Path(output_dir)
         self._decode_src_text = decode_src_text
         self._decode_tgt_text = decode_tgt_text
+        self._csv_delimiter = csv_delimiter
+        self._loss_decimal_separator = loss_decimal_separator
         self._sort_by_loss_desc = sort_by_loss_desc
 
     def split_dataset(
@@ -102,7 +106,10 @@ class Splitter:
                 stack.enter_context(path.open("w", encoding="utf-8", newline=""))
                 for path in output_paths
             ]
-            writers = [csv.DictWriter(file, fieldnames=_CSV_FIELDS) for file in files]
+            writers = [
+                csv.DictWriter(file, fieldnames=_CSV_FIELDS, delimiter=self._csv_delimiter)
+                for file in files
+            ]
             for writer in writers:
                 writer.writeheader()
             for row in dataset:
@@ -173,7 +180,7 @@ class Splitter:
 
     def _csv_row(
         self, example: Mapping[str, Any], loss: float
-    ) -> dict[str, str | int | float]:
+    ) -> dict[str, str | int]:
         if "src_ids" not in example or "tgt_ids" not in example:
             raise ValueError(
                 "Examples must define 'src_ids' and 'tgt_ids' for CSV bucket output."
@@ -182,18 +189,31 @@ class Splitter:
         tgt_ids = [int(token_id) for token_id in example["tgt_ids"]]
         return {
             "id": int(example["id"]),
-            "loss": loss,
+            "loss": self._format_loss(loss),
             "src": self._decode_src_text(src_ids),
             "tgt": self._decode_tgt_text(tgt_ids),
         }
 
     def _sort_bucket_file(self, path: Path) -> None:
         with path.open("r", encoding="utf-8", newline="") as handle:
-            rows = list(csv.DictReader(handle))
-        rows.sort(key=lambda row: float(row["loss"]), reverse=True)
+            rows = list(csv.DictReader(handle, delimiter=self._csv_delimiter))
+        rows.sort(key=lambda row: self._parse_loss(row["loss"]), reverse=True)
         tmp_path = path.with_suffix(f"{path.suffix}.tmp")
         with tmp_path.open("w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=_CSV_FIELDS)
+            writer = csv.DictWriter(
+                handle, fieldnames=_CSV_FIELDS, delimiter=self._csv_delimiter
+            )
             writer.writeheader()
             writer.writerows(rows)
         tmp_path.replace(path)
+
+    def _format_loss(self, loss: float) -> str:
+        formatted = str(loss)
+        if self._loss_decimal_separator == ".":
+            return formatted
+        return formatted.replace(".", ",")
+
+    def _parse_loss(self, loss: str) -> float:
+        if self._loss_decimal_separator == ",":
+            return float(loss.replace(",", "."))
+        return float(loss)

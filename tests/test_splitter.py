@@ -30,9 +30,9 @@ class _FakeBatchScorer:
         return [mapping[ex_id] for ex_id in ids]
 
 
-def _read_rows(path: Path) -> list[dict[str, str]]:
+def _read_rows(path: Path, *, delimiter: str = ",") -> list[dict[str, str]]:
     with path.open("r", encoding="utf-8", newline="") as handle:
-        return list(csv.DictReader(handle))
+        return list(csv.DictReader(handle, delimiter=delimiter))
 
 
 def _decode_text(token_ids: list[int]) -> str:
@@ -153,3 +153,34 @@ def test_splitter_logs_progress(caplog):
     assert any("Opening dataset from" in message for message in messages)
     assert any("Scoring batch 1/1" in message for message in messages)
     assert any("Sorting 2 bucket files by loss descending" in message for message in messages)
+
+
+def test_splitter_can_write_semicolon_csv_with_german_decimal_separator():
+    dataset_dir = _temp_dir("mapped_dataset_german_csv")
+    output_dir = _temp_dir("bucket_output_german_csv")
+    ds = Dataset.from_list(
+        [
+            {"id": 1, "src_ids": [11], "tgt_ids": [21]},
+            {"id": 2, "src_ids": [12], "tgt_ids": [22]},
+        ]
+    )
+    ds.save_to_disk(str(dataset_dir))
+
+    class _GermanCsvScorer:
+        def score_batch(self, examples: list[Mapping[str, object]]) -> list[float]:
+            mapping = {1: 0.9, 2: 0.2}
+            return [mapping[int(example["id"])] for example in examples]
+
+    output_paths = Splitter(
+        [1.5],
+        output_dir,
+        decode_src_text=_decode_text,
+        decode_tgt_text=_decode_text,
+        csv_delimiter=";",
+        loss_decimal_separator=",",
+        sort_by_loss_desc=True,
+    ).split_dataset(dataset_dir, _GermanCsvScorer(), batch_size=2)
+
+    bucket_rows = _read_rows(output_paths[0], delimiter=";")
+    assert [row["id"] for row in bucket_rows] == ["1", "2"]
+    assert [row["loss"] for row in bucket_rows] == ["0,9", "0,2"]

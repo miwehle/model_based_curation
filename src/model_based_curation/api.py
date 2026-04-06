@@ -108,6 +108,8 @@ def split(config: SplitConfig) -> list[Path]:
             decode_tgt_text=lambda token_ids: translator.tokenizer.decode(
                 _strip_leading_token(token_ids, translator.tgt_bos_id)
             ),
+            csv_delimiter=config.csv_delimiter,
+            loss_decimal_separator=config.loss_decimal_separator,
             sort_by_loss_desc=config.sort_by_loss_desc,
         ).split_dataset(dataset_path, scorer, batch_size=config.batch_size)
 

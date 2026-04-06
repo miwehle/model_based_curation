@@ -38,3 +38,33 @@ def test_split_config_uses_original_dataset_path_when_no_local_copy_is_set():
 
     assert cfg.resolved_dataset_path == Path("/drive/datasets/train")
     assert cfg.copy_buckets_to_drive_path is None
+
+
+def test_split_config_validates_csv_format_options():
+    try:
+        SplitConfig(
+            dataset_path="/drive/datasets/train",
+            checkpoint_path="/drive/checkpoints/model.pt",
+            output_dir="/content/loss_buckets",
+            upper_bounds=(0.5, 1.5),
+            csv_delimiter="|",
+        )
+    except ValueError as exc:
+        assert str(exc) == "csv_delimiter must be ',' or ';'."
+    else:
+        raise AssertionError("Expected ValueError for unsupported csv_delimiter.")
+
+    try:
+        SplitConfig(
+            dataset_path="/drive/datasets/train",
+            checkpoint_path="/drive/checkpoints/model.pt",
+            output_dir="/content/loss_buckets",
+            upper_bounds=(0.5, 1.5),
+            loss_decimal_separator=":",
+        )
+    except ValueError as exc:
+        assert str(exc) == "loss_decimal_separator must be '.' or ','."
+    else:
+        raise AssertionError(
+            "Expected ValueError for unsupported loss_decimal_separator."
+        )

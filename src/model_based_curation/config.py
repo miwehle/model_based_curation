@@ -12,12 +12,20 @@ class SplitConfig:
     checkpoint_path: str
     output_dir: str
     upper_bounds: tuple[float, ...]
+    csv_delimiter: str = ","
+    loss_decimal_separator: str = "."
     batch_size: int = 32
     sort_by_loss_desc: bool = False
     device: str | torch.device | None = None
     local_dataset_dir: str | None = None
     copy_buckets_to_drive_dir: str | None = None
     overwrite_output: bool = False
+
+    def __post_init__(self) -> None:
+        if self.csv_delimiter not in {",", ";"}:
+            raise ValueError("csv_delimiter must be ',' or ';'.")
+        if self.loss_decimal_separator not in {".", ","}:
+            raise ValueError("loss_decimal_separator must be '.' or ','.")
 
     @property
     def resolved_dataset_path(self) -> Path:
