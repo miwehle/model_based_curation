@@ -52,7 +52,7 @@ def test_splitter_writes_csv_buckets_named_by_bucket_interval():
     scorer = _FakeBatchScorer()
 
     output_paths = Splitter(
-        [0.5, 1.5], output_dir, decode_text=_decode_text
+        [0.5, 1.5], output_dir, decode_src_text=_decode_text, decode_tgt_text=_decode_text
     ).split_dataset(dataset_dir, scorer, batch_size=2)
 
     assert scorer.seen_batches == [[1, 2], [3]]
@@ -89,9 +89,35 @@ def test_splitter_sorts_rows_within_each_bucket_by_loss_desc():
             return [mapping[int(example["id"])] for example in examples]
 
     output_paths = Splitter(
-        [1.5], output_dir, decode_text=_decode_text, sort_by_loss_desc=True
+        [1.5],
+        output_dir,
+        decode_src_text=_decode_text,
+        decode_tgt_text=_decode_text,
+        sort_by_loss_desc=True,
     ).split_dataset(dataset_dir, _SortingScorer(), batch_size=2)
 
     bucket_rows = _read_rows(output_paths[0])
     assert [row["id"] for row in bucket_rows] == ["1", "3", "2"]
     assert [row["loss"] for row in bucket_rows] == ["0.9", "0.7", "0.2"]
+
+
+def test_splitter_can_decode_src_and_tgt_with_different_rules():
+    dataset_dir = _temp_dir("mapped_dataset_decoder_rules")
+    output_dir = _temp_dir("bucket_output_decoder_rules")
+    ds = Dataset.from_list([{"id": 1, "src_ids": [11, 12], "tgt_ids": [58101, 21, 0]}])
+    ds.save_to_disk(str(dataset_dir))
+
+    class _SingleExampleScorer:
+        def score_batch(self, examples: list[Mapping[str, object]]) -> list[float]:
+            del examples
+            return [0.2]
+
+    output_paths = Splitter(
+        [0.5],
+        output_dir,
+        decode_src_text=_decode_text,
+        decode_tgt_text=lambda token_ids: _decode_text(token_ids[1:]),
+    ).split_dataset(dataset_dir, _SingleExampleScorer(), batch_size=1)
+
+    bucket_rows = _read_rows(output_paths[0])
+    assert bucket_rows == [{"id": "1", "loss": "0.2", "src": "11|12", "tgt": "21|0"}]

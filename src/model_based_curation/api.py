@@ -46,6 +46,12 @@ def _copy_buckets_to_drive(output_dir: Path, drive_dir: Path) -> None:
         shutil.copy2(path, drive_dir / path.name)
 
 
+def _strip_leading_token(token_ids: list[int], token_id: int | None) -> list[int]:
+    if token_id is None or not token_ids or token_ids[0] != token_id:
+        return token_ids
+    return token_ids[1:]
+
+
 def split(config: SplitConfig) -> list[Path]:
     from translator.inference import Translator
 
@@ -64,7 +70,10 @@ def split(config: SplitConfig) -> list[Path]:
     output_paths = Splitter(
         config.upper_bounds,
         output_dir,
-        decode_text=lambda token_ids: translator.tokenizer.decode(token_ids),
+        decode_src_text=lambda token_ids: translator.tokenizer.decode(token_ids),
+        decode_tgt_text=lambda token_ids: translator.tokenizer.decode(
+            _strip_leading_token(token_ids, translator.tgt_bos_id)
+        ),
         sort_by_loss_desc=config.sort_by_loss_desc,
     ).split_dataset(dataset_path, scorer, batch_size=config.batch_size)
 

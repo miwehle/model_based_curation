@@ -59,12 +59,14 @@ class Splitter:
         upper_bounds: Sequence[float],
         output_dir: str | Path,
         *,
-        decode_text: Callable[[list[int]], str],
+        decode_src_text: Callable[[list[int]], str],
+        decode_tgt_text: Callable[[list[int]], str],
         sort_by_loss_desc: bool = False,
     ) -> None:
         self._bounds = _validate_upper_bounds(upper_bounds)
         self._output_dir = Path(output_dir)
-        self._decode_text = decode_text
+        self._decode_src_text = decode_src_text
+        self._decode_tgt_text = decode_tgt_text
         self._sort_by_loss_desc = sort_by_loss_desc
 
     def split_dataset(
@@ -135,8 +137,8 @@ class Splitter:
         return {
             "id": int(example["id"]),
             "loss": loss,
-            "src": self._decode_text(src_ids),
-            "tgt": self._decode_text(tgt_ids),
+            "src": self._decode_src_text(src_ids),
+            "tgt": self._decode_tgt_text(tgt_ids),
         }
 
     def _sort_bucket_file(self, path: Path) -> None:
