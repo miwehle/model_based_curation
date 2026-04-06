@@ -40,6 +40,7 @@ class SplitConfig:
     def drive_output_path(self) -> Path:
         return (
             Path("/content/drive/MyDrive/nmt_lab/artifacts")
+            / "datasets"
             / self.dataset
             / "curation"
             / "loss_buckets"

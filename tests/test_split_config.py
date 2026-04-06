@@ -24,7 +24,7 @@ def test_split_config_derives_conventional_paths_from_dataset_and_checkpoint():
         "/content/nmt_lab/artifacts/iwslt2017_iwslt2017-de-en_train/curation/loss_buckets"
     )
     assert cfg.drive_output_path == Path(
-        "/content/drive/MyDrive/nmt_lab/artifacts/iwslt2017_iwslt2017-de-en_train/curation/loss_buckets"
+        "/content/drive/MyDrive/nmt_lab/artifacts/datasets/iwslt2017_iwslt2017-de-en_train/curation/loss_buckets"
     )
     assert cfg.checkpoint_file == Path(
         "/content/drive/MyDrive/nmt_lab/artifacts/training_runs/2eu_10tt_1eu_5tt_5nc_1eu_5tt/checkpoint.pt"
