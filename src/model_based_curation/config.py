@@ -7,12 +7,13 @@ import torch
 
 
 @dataclass(frozen=True, kw_only=True)
-class CurationConfig:
+class SplitConfig:
     dataset_path: str
     checkpoint_path: str
     output_dir: str
     upper_bounds: tuple[float, ...]
     batch_size: int = 32
+    sort_by_loss_desc: bool = False
     device: str | torch.device | None = None
     local_dataset_dir: str | None = None
     copy_buckets_to_drive_dir: str | None = None

@@ -18,18 +18,21 @@ class _FakeSeq2Seq(torch.nn.Module):
 
 
 def test_batch_seq2seq_loss_scorer_returns_mean_token_loss_per_example():
-    logits = torch.tensor([
+    logits = torch.tensor(
         [
-            [0.0, 4.0, 0.0, 0.0],
-            [0.0, 0.0, 4.0, 0.0],
-            [0.0, 0.0, 0.0, 4.0],
+            [
+                [0.0, 4.0, 0.0, 0.0],
+                [0.0, 0.0, 4.0, 0.0],
+                [0.0, 0.0, 0.0, 4.0],
+            ],
+            [
+                [0.0, 4.0, 0.0, 0.0],
+                [0.0, 0.0, 4.0, 0.0],
+                [4.0, 0.0, 0.0, 0.0],
+            ],
         ],
-        [
-            [0.0, 4.0, 0.0, 0.0],
-            [0.0, 0.0, 4.0, 0.0],
-            [4.0, 0.0, 0.0, 0.0],
-        ],
-    ], dtype=torch.float)
+        dtype=torch.float,
+    )
     model = _FakeSeq2Seq(logits)
     scorer = BatchSeq2SeqLossScorer(
         model,
@@ -38,10 +41,12 @@ def test_batch_seq2seq_loss_scorer_returns_mean_token_loss_per_example():
         tgt_pad_id=0,
     )
 
-    losses = scorer.score_batch([
-        {"id": 1, "src_ids": [10, 11], "tgt_ids": [1, 1, 2, 3]},
-        {"id": 2, "src_ids": [12], "tgt_ids": [1, 1, 2]},
-    ])
+    losses = scorer.score_batch(
+        [
+            {"id": 1, "src_ids": [10, 11], "tgt_ids": [1, 1, 2, 3]},
+            {"id": 2, "src_ids": [12], "tgt_ids": [1, 1, 2]},
+        ]
+    )
 
     expected_1 = float(
         torch.nn.functional.cross_entropy(

@@ -30,9 +30,7 @@ class BatchSeq2SeqLossScorer:
         self._id_field = id_field
         self._src_field = src_field
         self._tgt_field = tgt_field
-        self._criterion = nn.CrossEntropyLoss(
-            ignore_index=tgt_pad_id, reduction="none"
-        )
+        self._criterion = nn.CrossEntropyLoss(ignore_index=tgt_pad_id, reduction="none")
 
     def score_batch(self, examples: list[Mapping[str, Any]]) -> list[float]:
         src, tgt, _ = collate_examples(
@@ -56,5 +54,7 @@ class BatchSeq2SeqLossScorer:
         loss_sums = (per_token_loss * mask).sum(dim=1)
         token_counts = mask.sum(dim=1)
         if torch.any(token_counts == 0):
-            raise ValueError("Each example must contribute at least one non-pad target token.")
+            raise ValueError(
+                "Each example must contribute at least one non-pad target token."
+            )
         return [float(x) for x in (loss_sums / token_counts).tolist()]

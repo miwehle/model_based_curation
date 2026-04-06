@@ -15,10 +15,10 @@ if TRANSLATOR_SRC_DIR.is_dir() and str(TRANSLATOR_SRC_DIR) not in sys.path:
 
 
 def main() -> int:
-    from model_based_curation import CurationConfig, curate
+    from model_based_curation import SplitConfig, split
 
     if len(sys.argv) != 2:
-        print("Usage: python scripts/curate.py <config-path>")
+        print("Usage: python scripts/split.py <config-path>")
         return 1
 
     config_path = Path(sys.argv[1])
@@ -31,12 +31,12 @@ def main() -> int:
 
     try:
         raw_upper_bounds = cfg.get("upper_bounds") or ()
-        curation_config = CurationConfig(
+        split_config = SplitConfig(
             **{**cfg, "upper_bounds": tuple(float(x) for x in raw_upper_bounds)}
         )
-        curate(curation_config)
+        split(split_config)
     except Exception as exc:
-        print(f"Curation failed: {exc}")
+        print(f"Split failed: {exc}")
         return 1
 
     return 0
