@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import csv
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import ExitStack
 from pathlib import Path
 from typing import Any, Protocol
@@ -59,10 +59,12 @@ class Splitter:
         upper_bounds: Sequence[float],
         output_dir: str | Path,
         *,
+        decode_text: Callable[[list[int]], str],
         sort_by_loss_desc: bool = False,
     ) -> None:
         self._bounds = _validate_upper_bounds(upper_bounds)
         self._output_dir = Path(output_dir)
+        self._decode_text = decode_text
         self._sort_by_loss_desc = sort_by_loss_desc
 
     def split_dataset(
@@ -124,15 +126,17 @@ class Splitter:
     def _csv_row(
         self, example: Mapping[str, Any], loss: float
     ) -> dict[str, str | int | float]:
-        if "src" not in example or "tgt" not in example:
+        if "src_ids" not in example or "tgt_ids" not in example:
             raise ValueError(
-                "Examples must define 'src' and 'tgt' for CSV bucket output."
+                "Examples must define 'src_ids' and 'tgt_ids' for CSV bucket output."
             )
+        src_ids = [int(token_id) for token_id in example["src_ids"]]
+        tgt_ids = [int(token_id) for token_id in example["tgt_ids"]]
         return {
             "id": int(example["id"]),
             "loss": loss,
-            "src": str(example["src"]),
-            "tgt": str(example["tgt"]),
+            "src": self._decode_text(src_ids),
+            "tgt": self._decode_text(tgt_ids),
         }
 
     def _sort_bucket_file(self, path: Path) -> None:

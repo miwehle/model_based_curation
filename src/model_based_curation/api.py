@@ -64,6 +64,7 @@ def split(config: SplitConfig) -> list[Path]:
     output_paths = Splitter(
         config.upper_bounds,
         output_dir,
+        decode_text=lambda token_ids: translator.tokenizer.decode(token_ids),
         sort_by_loss_desc=config.sort_by_loss_desc,
     ).split_dataset(dataset_path, scorer, batch_size=config.batch_size)
 

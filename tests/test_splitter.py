@@ -34,34 +34,26 @@ def _read_rows(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
+def _decode_text(token_ids: list[int]) -> str:
+    return "|".join(str(token_id) for token_id in token_ids)
+
+
 def test_splitter_writes_csv_buckets_named_by_bucket_interval():
     dataset_dir = _temp_dir("mapped_dataset_splitter")
     output_dir = _temp_dir("bucket_output_splitter")
     ds = Dataset.from_list(
         [
-            {
-                "id": 1,
-                "src": "eins",
-                "tgt": "one",
-                "src_ids": [11, 12],
-                "tgt_ids": [21, 22],
-            },
-            {"id": 2, "src": "zwei", "tgt": "two", "src_ids": [13], "tgt_ids": [23]},
-            {
-                "id": 3,
-                "src": "drei",
-                "tgt": "three",
-                "src_ids": [14, 15, 16],
-                "tgt_ids": [24],
-            },
+            {"id": 1, "src_ids": [11, 12], "tgt_ids": [21, 22]},
+            {"id": 2, "src_ids": [13], "tgt_ids": [23]},
+            {"id": 3, "src_ids": [14, 15, 16], "tgt_ids": [24]},
         ]
     )
     ds.save_to_disk(str(dataset_dir))
     scorer = _FakeBatchScorer()
 
-    output_paths = Splitter([0.5, 1.5], output_dir).split_dataset(
-        dataset_dir, scorer, batch_size=2
-    )
+    output_paths = Splitter(
+        [0.5, 1.5], output_dir, decode_text=_decode_text
+    ).split_dataset(dataset_dir, scorer, batch_size=2)
 
     assert scorer.seen_batches == [[1, 2], [3]]
     assert [path.name for path in output_paths] == [
@@ -74,9 +66,9 @@ def test_splitter_writes_csv_buckets_named_by_bucket_interval():
     bucket_2 = _read_rows(output_paths[1])
     bucket_3 = _read_rows(output_paths[2])
 
-    assert bucket_1 == [{"id": "1", "loss": "0.2", "src": "eins", "tgt": "one"}]
-    assert bucket_2 == [{"id": "2", "loss": "0.9", "src": "zwei", "tgt": "two"}]
-    assert bucket_3 == [{"id": "3", "loss": "2.3", "src": "drei", "tgt": "three"}]
+    assert bucket_1 == [{"id": "1", "loss": "0.2", "src": "11|12", "tgt": "21|22"}]
+    assert bucket_2 == [{"id": "2", "loss": "0.9", "src": "13", "tgt": "23"}]
+    assert bucket_3 == [{"id": "3", "loss": "2.3", "src": "14|15|16", "tgt": "24"}]
 
 
 def test_splitter_sorts_rows_within_each_bucket_by_loss_desc():
@@ -84,9 +76,9 @@ def test_splitter_sorts_rows_within_each_bucket_by_loss_desc():
     output_dir = _temp_dir("bucket_output_sorted")
     ds = Dataset.from_list(
         [
-            {"id": 1, "src": "eins", "tgt": "one", "src_ids": [11], "tgt_ids": [21]},
-            {"id": 2, "src": "zwei", "tgt": "two", "src_ids": [12], "tgt_ids": [22]},
-            {"id": 3, "src": "drei", "tgt": "three", "src_ids": [13], "tgt_ids": [23]},
+            {"id": 1, "src_ids": [11], "tgt_ids": [21]},
+            {"id": 2, "src_ids": [12], "tgt_ids": [22]},
+            {"id": 3, "src_ids": [13], "tgt_ids": [23]},
         ]
     )
     ds.save_to_disk(str(dataset_dir))
@@ -96,9 +88,9 @@ def test_splitter_sorts_rows_within_each_bucket_by_loss_desc():
             mapping = {1: 0.9, 2: 0.2, 3: 0.7}
             return [mapping[int(example["id"])] for example in examples]
 
-    output_paths = Splitter([1.5], output_dir, sort_by_loss_desc=True).split_dataset(
-        dataset_dir, _SortingScorer(), batch_size=2
-    )
+    output_paths = Splitter(
+        [1.5], output_dir, decode_text=_decode_text, sort_by_loss_desc=True
+    ).split_dataset(dataset_dir, _SortingScorer(), batch_size=2)
 
     bucket_rows = _read_rows(output_paths[0])
     assert [row["id"] for row in bucket_rows] == ["1", "3", "2"]
