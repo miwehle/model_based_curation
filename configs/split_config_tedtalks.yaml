@@ -1,4 +1,5 @@
 dataset_path: /content/drive/MyDrive/nmt_lab/artifacts/datasets/iwslt2017_iwslt2017-de-en_train (7)
+local_dataset_dir: /content/datasets/iwslt2017_iwslt2017-de-en_train_7
 checkpoint_path: /content/drive/MyDrive/nmt_lab/artifacts/training_runs/2eu_10tt_1eu_5tt_5nc_1eu_5tt/checkpoint.pt
 output_dir: /content/loss_buckets
 
