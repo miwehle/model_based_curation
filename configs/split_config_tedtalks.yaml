@@ -14,7 +14,7 @@ upper_bounds:
   - 4.5
   - 5.0
 
-batch_size: 128
+batch_size: 256
 sort_by_loss_desc: true
 device: cuda
 copy_buckets_to_drive_dir: /content/drive/MyDrive/nmt_lab/artifacts/loss_buckets
