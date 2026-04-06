@@ -23,3 +23,4 @@ overwrite_output: true
 csv_delimiter: ";"
 loss_decimal_separator: ","
 decode_from_loss: 3.0
+use_bf16: true
