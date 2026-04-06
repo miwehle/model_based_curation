@@ -20,10 +20,10 @@ def _resolve_device():
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def _prepare_output_dir(output_dir: Path) -> None:
-    if output_dir.exists():
-        shutil.rmtree(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+def _recreate_dir(path: Path) -> None:
+    if path.exists():
+        shutil.rmtree(path)
+    path.mkdir(parents=True, exist_ok=True)
 
 
 def _copy_dataset_to_local_artifacts(config: SplitConfig) -> Path:
@@ -37,7 +37,7 @@ def _copy_dataset_to_local_artifacts(config: SplitConfig) -> Path:
 
 
 def _copy_buckets_to_drive(output_dir: Path, drive_dir: Path) -> None:
-    drive_dir.mkdir(parents=True, exist_ok=True)
+    _recreate_dir(drive_dir)
     for path in output_dir.glob("*.csv"):
         shutil.copy2(path, drive_dir / path.name)
 
@@ -74,7 +74,7 @@ def split(config: SplitConfig) -> list[Path]:
 
     dataset_path = _copy_dataset_to_local_artifacts(config)
     output_dir = config.output_path
-    _prepare_output_dir(output_dir)
+    _recreate_dir(output_dir)
     log_path = output_dir / _LOG_FILE_NAME
 
     with _attach_file_logger(log_path):

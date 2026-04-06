@@ -80,6 +80,8 @@ def test_split_writes_log_file_and_copies_it_to_drive(monkeypatch, caplog):
         "model_based_curation.api.BatchSeq2SeqLossScorer",
         lambda *args, **kwargs: _FakeScorer(),
     )
+    drive_dir.mkdir(parents=True, exist_ok=True)
+    (drive_dir / "stale.txt").write_text("old", encoding="utf-8")
     _patch_config_paths(
         monkeypatch,
         dataset_dir=dataset_dir,
@@ -106,6 +108,7 @@ def test_split_writes_log_file_and_copies_it_to_drive(monkeypatch, caplog):
     ]
     assert local_log_path.is_file()
     assert drive_log_path.is_file()
+    assert not (drive_dir / "stale.txt").exists()
     assert "Preparing split for dataset" in local_log_path.read_text(encoding="utf-8")
     assert "Split completed successfully" in drive_log_path.read_text(encoding="utf-8")
     assert any("Copying split log to" in record.getMessage() for record in caplog.records)
