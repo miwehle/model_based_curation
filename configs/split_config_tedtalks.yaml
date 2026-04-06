@@ -19,3 +19,5 @@ sort_by_loss_desc: true
 device: cuda
 copy_buckets_to_drive_dir: /content/drive/MyDrive/nmt_lab/artifacts/loss_buckets
 overwrite_output: true
+csv_delimiter: ";"
+loss_decimal_separator: ","
