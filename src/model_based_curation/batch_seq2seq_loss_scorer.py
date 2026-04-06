@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from time import perf_counter
 from typing import Any
 
 import torch
@@ -31,8 +32,10 @@ class BatchSeq2SeqLossScorer:
         self._src_field = src_field
         self._tgt_field = tgt_field
         self._criterion = nn.CrossEntropyLoss(ignore_index=tgt_pad_id, reduction="none")
+        self.last_collate_s = self.last_h2d_s = self.last_forward_s = 0.0
 
     def score_batch(self, examples: list[Mapping[str, Any]]) -> list[float]:
+        t0 = perf_counter()
         src, tgt, _ = collate_examples(
             examples,
             id_field=self._id_field,
@@ -41,8 +44,12 @@ class BatchSeq2SeqLossScorer:
             src_pad_id=self._src_pad_id,
             tgt_pad_id=self._tgt_pad_id,
         )
+        t1 = perf_counter()
         src = src.to(self._device)
         tgt = tgt.to(self._device)
+        if self._device.type == "cuda":
+            torch.cuda.synchronize(self._device)
+        t2 = perf_counter()
         self._model.eval()
         with torch.no_grad():
             logits = self._model(src, tgt)
@@ -50,6 +57,9 @@ class BatchSeq2SeqLossScorer:
                 logits.reshape(-1, logits.size(-1)),
                 tgt[:, 1:].reshape(-1),
             ).reshape(tgt.size(0), -1)
+        if self._device.type == "cuda":
+            torch.cuda.synchronize(self._device)
+        self.last_collate_s, self.last_h2d_s, self.last_forward_s = t1 - t0, t2 - t1, perf_counter() - t2
         mask = (tgt[:, 1:] != self._tgt_pad_id).to(per_token_loss.dtype)
         loss_sums = (per_token_loss * mask).sum(dim=1)
         token_counts = mask.sum(dim=1)

@@ -7,6 +7,7 @@ import logging
 from math import ceil
 from pathlib import Path
 import subprocess
+from time import perf_counter
 from typing import Any, Protocol
 
 Example = dict[str, Any]
@@ -94,6 +95,7 @@ class Splitter:
         self._csv_delimiter = csv_delimiter
         self._loss_decimal_separator = loss_decimal_separator
         self._sort_by_loss_desc = sort_by_loss_desc
+        self._collate_s = self._h2d_s = self._forward_s = self._post_s = 0.0; self._timed_batches = self._timed_examples = 0
 
     def split_dataset(
         self,
@@ -119,6 +121,7 @@ class Splitter:
         batch: list[Example] = []
         processed_examples = 0
         batch_index = 0
+        self._collate_s = self._h2d_s = self._forward_s = self._post_s = 0.0; self._timed_batches = self._timed_examples = 0
 
         with ExitStack() as stack:
             files = [
@@ -162,6 +165,7 @@ class Splitter:
             processed_examples,
             len(output_paths),
         )
+        if self._timed_batches: _LOG.info("Timing summary batches=%s examples=%s collate_s=%.3f h2d_s=%.3f forward_s=%.3f post_s=%.3f", self._timed_batches, self._timed_examples, self._collate_s, self._h2d_s, self._forward_s, self._post_s)
         return output_paths
 
     def _batch_message(
@@ -196,11 +200,13 @@ class Splitter:
         if not batch:
             return
         losses = scorer.score_batch(batch)
+        self._collate_s += float(getattr(scorer, "last_collate_s", 0.0)); self._h2d_s += float(getattr(scorer, "last_h2d_s", 0.0)); self._forward_s += float(getattr(scorer, "last_forward_s", 0.0)); self._timed_batches += 1; self._timed_examples += len(batch); t0 = perf_counter()
         if len(losses) != len(batch):
             raise ValueError("score_batch must return one loss per example.")
         for example, loss in zip(batch, losses, strict=True):
             writer_index = _bucket_index(float(loss), self._bounds)
             writers[writer_index].writerow(self._csv_row(example, float(loss)))
+        self._post_s += perf_counter() - t0
 
     def _csv_row(
         self, example: Mapping[str, Any], loss: float
