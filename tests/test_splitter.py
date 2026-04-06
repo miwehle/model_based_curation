@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import logging
 from collections.abc import Mapping
 from pathlib import Path
 from uuid import uuid4
@@ -121,3 +122,34 @@ def test_splitter_can_decode_src_and_tgt_with_different_rules():
 
     bucket_rows = _read_rows(output_paths[0])
     assert bucket_rows == [{"id": "1", "loss": "0.2", "src": "11|12", "tgt": "21|0"}]
+
+
+def test_splitter_logs_progress(caplog):
+    dataset_dir = _temp_dir("mapped_dataset_logged")
+    output_dir = _temp_dir("bucket_output_logged")
+    ds = Dataset.from_list(
+        [
+            {"id": 1, "src_ids": [11], "tgt_ids": [21]},
+            {"id": 2, "src_ids": [12], "tgt_ids": [22]},
+        ]
+    )
+    ds.save_to_disk(str(dataset_dir))
+
+    class _LoggedScorer:
+        def score_batch(self, examples: list[Mapping[str, object]]) -> list[float]:
+            del examples
+            return [0.1, 0.2]
+
+    with caplog.at_level(logging.INFO):
+        Splitter(
+            [1.5],
+            output_dir,
+            decode_src_text=_decode_text,
+            decode_tgt_text=_decode_text,
+            sort_by_loss_desc=True,
+        ).split_dataset(dataset_dir, _LoggedScorer(), batch_size=2)
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert any("Opening dataset from" in message for message in messages)
+    assert any("Scoring batch 1/1" in message for message in messages)
+    assert any("Sorting 2 bucket files by loss descending" in message for message in messages)

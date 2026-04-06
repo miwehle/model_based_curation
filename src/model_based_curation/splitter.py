@@ -3,11 +3,14 @@ from __future__ import annotations
 import csv
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import ExitStack
+import logging
+from math import ceil
 from pathlib import Path
 from typing import Any, Protocol
 
 Example = dict[str, Any]
 _CSV_FIELDS = ("id", "loss", "src", "tgt")
+_LOG = logging.getLogger(__name__)
 
 
 class BatchLossScorer(Protocol):
@@ -79,10 +82,20 @@ class Splitter:
         if batch_size <= 0:
             raise ValueError("batch_size must be positive.")
 
+        _LOG.info("Opening dataset from %s", dataset_path)
         dataset = _load_dataset(dataset_path)
+        total_examples = len(dataset)
+        total_batches = ceil(total_examples / batch_size) if total_examples else 0
+        _LOG.info(
+            "Loaded dataset with %s examples; writing buckets to %s",
+            total_examples,
+            self._output_dir,
+        )
         self._output_dir.mkdir(parents=True, exist_ok=True)
         output_paths = self._bucket_paths()
         batch: list[Example] = []
+        processed_examples = 0
+        batch_index = 0
 
         with ExitStack() as stack:
             files = [
@@ -95,14 +108,47 @@ class Splitter:
             for row in dataset:
                 batch.append(dict(row))
                 if len(batch) == batch_size:
+                    batch_index += 1
+                    _LOG.info(
+                        self._batch_message(
+                            batch_index, total_batches, len(batch), processed_examples
+                        )
+                    )
                     self._flush_batch(batch, scorer, writers)
+                    processed_examples += len(batch)
                     batch.clear()
+            if batch:
+                batch_index += 1
+                _LOG.info(
+                    self._batch_message(
+                        batch_index, total_batches, len(batch), processed_examples
+                    )
+                )
             self._flush_batch(batch, scorer, writers)
+            processed_examples += len(batch)
 
         if self._sort_by_loss_desc:
+            _LOG.info("Sorting %s bucket files by loss descending", len(output_paths))
             for path in output_paths:
                 self._sort_bucket_file(path)
+        _LOG.info(
+            "Finished split with %s processed examples into %s buckets",
+            processed_examples,
+            len(output_paths),
+        )
         return output_paths
+
+    def _batch_message(
+        self, batch_index: int, total_batches: int, batch_len: int, processed_examples: int
+    ) -> str:
+        batch_label = (
+            f"Scoring batch {batch_index}/{total_batches}"
+            if total_batches
+            else f"Scoring batch {batch_index}"
+        )
+        start_index = processed_examples + 1
+        end_index = processed_examples + batch_len
+        return f"{batch_label} ({batch_len} examples; rows {start_index}-{end_index})"
 
     def _bucket_paths(self) -> list[Path]:
         return [

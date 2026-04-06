@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 
@@ -14,9 +15,19 @@ if TRANSLATOR_SRC_DIR.is_dir() and str(TRANSLATOR_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(TRANSLATOR_SRC_DIR))
 
 
+def _configure_logging() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        stream=sys.stdout,
+        force=True,
+    )
+
+
 def main() -> int:
     from model_based_curation import SplitConfig, split
 
+    _configure_logging()
     if len(sys.argv) != 2:
         print("Usage: python scripts/split.py <config-path>")
         return 1
