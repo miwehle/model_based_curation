@@ -14,16 +14,10 @@ _PACKAGE_LOG = logging.getLogger("model_based_curation")
 _LOG_FILE_NAME = "split.log"
 
 
-def _resolve_device(device):
+def _resolve_device():
     import torch
 
-    if device is None:
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if isinstance(device, torch.device):
-        return device
-    if str(device).lower() == "auto":
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    return torch.device(device)
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def _prepare_output_dir(output_dir: Path, *, overwrite: bool) -> None:
@@ -87,7 +81,7 @@ def split(config: SplitConfig) -> list[Path]:
 
     with _attach_file_logger(log_path):
         _LOG.info("Preparing split for dataset %s", config.dataset)
-        resolved_device = _resolve_device(config.device)
+        resolved_device = _resolve_device()
         _LOG.info(
             "Loading checkpoint %s on device %s", config.checkpoint_file, resolved_device
         )

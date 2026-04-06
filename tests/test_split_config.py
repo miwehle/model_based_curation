@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import torch
-
 from model_based_curation import SplitConfig
 
 
@@ -14,7 +12,6 @@ def test_split_config_derives_conventional_paths_from_dataset_and_checkpoint():
         upper_bounds=(0.5, 1.5),
         batch_size=64,
         sort_by_loss_desc=True,
-        device=torch.device("cuda"),
         overwrite_output=True,
     )
 

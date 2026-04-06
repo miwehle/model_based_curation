@@ -3,8 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-import torch
-
 
 @dataclass(frozen=True, kw_only=True)
 class SplitConfig:
@@ -15,7 +13,6 @@ class SplitConfig:
     loss_decimal_separator: str = ","
     batch_size: int = 32
     sort_by_loss_desc: bool = False
-    device: str | torch.device | None = None
     use_bf16: bool = False
     decode_from_loss: float | None = None
     overwrite_output: bool = False
