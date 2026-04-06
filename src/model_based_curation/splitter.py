@@ -12,6 +12,7 @@ from typing import Any, Protocol
 
 Example = dict[str, Any]
 _CSV_FIELDS = ("id", "loss", "src", "tgt")
+_NOT_DECODED = "(not decoded)"
 _LOG = logging.getLogger(__name__)
 
 
@@ -86,6 +87,7 @@ class Splitter:
         decode_tgt_text: Callable[[list[int]], str],
         csv_delimiter: str = ",",
         loss_decimal_separator: str = ".",
+        decode_from_loss: float | None = None,
         sort_by_loss_desc: bool = False,
     ) -> None:
         self._bounds = _validate_upper_bounds(upper_bounds)
@@ -94,6 +96,7 @@ class Splitter:
         self._decode_tgt_text = decode_tgt_text
         self._csv_delimiter = csv_delimiter
         self._loss_decimal_separator = loss_decimal_separator
+        self._decode_from_loss = decode_from_loss
         self._sort_by_loss_desc = sort_by_loss_desc
         self._collate_s = self._h2d_s = self._forward_s = self._post_s = self._decode_s = self._write_s = 0.0; self._timed_batches = self._timed_examples = 0
 
@@ -222,11 +225,12 @@ class Splitter:
             )
         src_ids = [int(token_id) for token_id in example["src_ids"]]
         tgt_ids = [int(token_id) for token_id in example["tgt_ids"]]
+        decode_text = self._decode_from_loss is None or loss >= self._decode_from_loss
         return {
             "id": int(example["id"]),
             "loss": self._format_loss(loss),
-            "src": self._decode_src_text(src_ids),
-            "tgt": self._decode_tgt_text(tgt_ids),
+            "src": self._decode_src_text(src_ids) if decode_text else _NOT_DECODED,
+            "tgt": self._decode_tgt_text(tgt_ids) if decode_text else _NOT_DECODED,
         }
 
     def _sort_bucket_file(self, path: Path) -> None:

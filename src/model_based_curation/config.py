@@ -19,6 +19,7 @@ class SplitConfig:
     device: str | torch.device | None = None
     local_dataset_dir: str | None = None
     copy_buckets_to_drive_dir: str | None = None
+    decode_from_loss: float | None = None
     overwrite_output: bool = False
 
     def __post_init__(self) -> None:
@@ -26,6 +27,8 @@ class SplitConfig:
             raise ValueError("csv_delimiter must be ',' or ';'.")
         if self.loss_decimal_separator not in {".", ","}:
             raise ValueError("loss_decimal_separator must be '.' or ','.")
+        if self.decode_from_loss is not None and self.decode_from_loss < 0:
+            raise ValueError("decode_from_loss must be non-negative.")
 
     @property
     def resolved_dataset_path(self) -> Path:

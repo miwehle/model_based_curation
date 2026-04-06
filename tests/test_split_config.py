@@ -68,3 +68,16 @@ def test_split_config_validates_csv_format_options():
         raise AssertionError(
             "Expected ValueError for unsupported loss_decimal_separator."
         )
+
+    try:
+        SplitConfig(
+            dataset_path="/drive/datasets/train",
+            checkpoint_path="/drive/checkpoints/model.pt",
+            output_dir="/content/loss_buckets",
+            upper_bounds=(0.5, 1.5),
+            decode_from_loss=-0.1,
+        )
+    except ValueError as exc:
+        assert str(exc) == "decode_from_loss must be non-negative."
+    else:
+        raise AssertionError("Expected ValueError for negative decode_from_loss.")

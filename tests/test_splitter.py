@@ -185,3 +185,33 @@ def test_splitter_can_write_semicolon_csv_with_german_decimal_separator():
     bucket_rows = _read_rows(output_paths[0], delimiter=";")
     assert [row["id"] for row in bucket_rows] == ["1", "2"]
     assert [row["loss"] for row in bucket_rows] == ["0,9", "0,2"]
+
+
+def test_splitter_decodes_only_from_configured_loss_threshold():
+    dataset_dir = _temp_dir("mapped_dataset_decode_threshold")
+    output_dir = _temp_dir("bucket_output_decode_threshold")
+    ds = Dataset.from_list(
+        [
+            {"id": 1, "src_ids": [11], "tgt_ids": [21]},
+            {"id": 2, "src_ids": [12], "tgt_ids": [22]},
+        ]
+    )
+    ds.save_to_disk(str(dataset_dir))
+
+    class _ThresholdScorer:
+        def score_batch(self, examples: list[Mapping[str, object]]) -> list[float]:
+            mapping = {1: 0.9, 2: 1.7}
+            return [mapping[int(example["id"])] for example in examples]
+
+    output_paths = Splitter(
+        [1.5],
+        output_dir,
+        decode_src_text=_decode_text,
+        decode_tgt_text=_decode_text,
+        decode_from_loss=1.0,
+    ).split_dataset(dataset_dir, _ThresholdScorer(), batch_size=2)
+
+    bucket_1 = _read_rows(output_paths[0])
+    bucket_2 = _read_rows(output_paths[1])
+    assert bucket_1 == [{"id": "1", "loss": "0.9", "src": "(not decoded)", "tgt": "(not decoded)"}]
+    assert bucket_2 == [{"id": "2", "loss": "1.7", "src": "12", "tgt": "22"}]
