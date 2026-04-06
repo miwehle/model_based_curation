@@ -8,6 +8,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from datasets import Dataset
+import pytest
 
 from model_based_curation import SplitConfig, split
 
@@ -80,8 +81,6 @@ def test_split_writes_log_file_and_copies_it_to_drive(monkeypatch, caplog):
         "model_based_curation.api.BatchSeq2SeqLossScorer",
         lambda *args, **kwargs: _FakeScorer(),
     )
-    drive_dir.mkdir(parents=True, exist_ok=True)
-    (drive_dir / "stale.txt").write_text("old", encoding="utf-8")
     _patch_config_paths(
         monkeypatch,
         dataset_dir=dataset_dir,
@@ -108,10 +107,25 @@ def test_split_writes_log_file_and_copies_it_to_drive(monkeypatch, caplog):
     ]
     assert local_log_path.is_file()
     assert drive_log_path.is_file()
-    assert not (drive_dir / "stale.txt").exists()
     assert "Preparing split for dataset" in local_log_path.read_text(encoding="utf-8")
     assert "Split completed successfully" in drive_log_path.read_text(encoding="utf-8")
     assert any("Copying split log to" in record.getMessage() for record in caplog.records)
+
+
+def test_split_fails_early_when_drive_output_dir_exists(monkeypatch):
+    root_dir = _temp_dir("split_api_drive_exists")
+    drive_dir = root_dir / "drive_artifacts" / "dataset" / "curation" / "loss_buckets"
+    drive_dir.mkdir(parents=True, exist_ok=True)
+    _patch_config_paths(
+        monkeypatch,
+        dataset_dir=root_dir / "dataset",
+        output_dir=root_dir / "local_artifacts" / "dataset" / "curation" / "loss_buckets",
+        drive_dir=drive_dir,
+        checkpoint_file=root_dir / "checkpoint.pt",
+    )
+
+    with pytest.raises(ValueError, match="Drive output directory already exists"):
+        split(SplitConfig(dataset="dataset", checkpoint="run", upper_bounds=(0.5,)))
 
 
 def test_split_can_write_german_csv_format(monkeypatch):

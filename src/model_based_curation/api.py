@@ -20,10 +20,9 @@ def _resolve_device():
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def _recreate_dir(path: Path) -> None:
+def _fail_if_dir_exists(path: Path, *, label: str) -> None:
     if path.exists():
-        shutil.rmtree(path)
-    path.mkdir(parents=True, exist_ok=True)
+        raise ValueError(f"{label} already exists: {path}")
 
 
 def _copy_dataset_to_local_artifacts(config: SplitConfig) -> Path:
@@ -37,7 +36,7 @@ def _copy_dataset_to_local_artifacts(config: SplitConfig) -> Path:
 
 
 def _copy_buckets_to_drive(output_dir: Path, drive_dir: Path) -> None:
-    _recreate_dir(drive_dir)
+    drive_dir.mkdir(parents=True, exist_ok=True)
     for path in output_dir.glob("*.csv"):
         shutil.copy2(path, drive_dir / path.name)
 
@@ -70,11 +69,14 @@ def _strip_leading_token(token_ids: list[int], token_id: int | None) -> list[int
 
 
 def split(config: SplitConfig) -> list[Path]:
+    output_dir = config.output_path
+    drive_output_dir = config.drive_output_path
+    _fail_if_dir_exists(output_dir, label="Local output directory")
+    _fail_if_dir_exists(drive_output_dir, label="Drive output directory")
     from translator.inference import Translator
 
     dataset_path = _copy_dataset_to_local_artifacts(config)
-    output_dir = config.output_path
-    _recreate_dir(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
     log_path = output_dir / _LOG_FILE_NAME
 
     with _attach_file_logger(log_path):
@@ -105,9 +107,9 @@ def split(config: SplitConfig) -> list[Path]:
             sort_by_loss_desc=config.sort_by_loss_desc,
         ).split_dataset(dataset_path, scorer, batch_size=config.batch_size)
 
-        _LOG.info("Copying bucket files to %s", config.drive_output_path)
-        _copy_buckets_to_drive(output_dir, config.drive_output_path)
+        _LOG.info("Copying bucket files to %s", drive_output_dir)
+        _copy_buckets_to_drive(output_dir, drive_output_dir)
         _LOG.info("Split completed successfully")
-        _LOG.info("Copying split log to %s", config.drive_output_path / log_path.name)
-        _copy_log_to_drive(log_path, config.drive_output_path)
+        _LOG.info("Copying split log to %s", drive_output_dir / log_path.name)
+        _copy_log_to_drive(log_path, drive_output_dir)
     return output_paths
