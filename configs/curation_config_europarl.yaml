@@ -11,5 +11,5 @@ upper_bounds:
 batch_size: 32
 device: cuda
 local_dataset_dir: /content/datasets/europarl_de-en_train_10000
-copy_buckets_to_drive_dir: /content/drive/MyDrive/nmt_lab/artifacts/curation/loss_buckets
+copy_buckets_to_drive_dir: /content/drive/MyDrive/nmt_lab/artifacts/loss_buckets
 overwrite_output: false
