@@ -12,11 +12,14 @@ class SplitConfig:
     csv_delimiter: str = ";"
     loss_decimal_separator: str = ","
     batch_size: int = 32
+    log_every_batches: int = 50
     sort_by_loss_desc: bool = False
     use_bf16: bool = False
     decode_from_loss: float | None = None
 
     def __post_init__(self) -> None:
+        if self.log_every_batches <= 0:
+            raise ValueError("log_every_batches must be positive.")
         if self.csv_delimiter not in {",", ";"}:
             raise ValueError("csv_delimiter must be ',' or ';'.")
         if self.loss_decimal_separator not in {".", ","}:

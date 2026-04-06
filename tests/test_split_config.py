@@ -37,9 +37,22 @@ def test_split_config_uses_german_csv_defaults():
 
     assert cfg.csv_delimiter == ";"
     assert cfg.loss_decimal_separator == ","
+    assert cfg.log_every_batches == 50
 
 
 def test_split_config_validates_csv_format_options():
+    try:
+        SplitConfig(
+            dataset="dataset",
+            checkpoint="run",
+            upper_bounds=(0.5, 1.5),
+            log_every_batches=0,
+        )
+    except ValueError as exc:
+        assert str(exc) == "log_every_batches must be positive."
+    else:
+        raise AssertionError("Expected ValueError for non-positive log_every_batches.")
+
     try:
         SplitConfig(
             dataset="dataset",

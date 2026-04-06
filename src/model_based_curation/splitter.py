@@ -88,6 +88,7 @@ class Splitter:
         csv_delimiter: str = ",",
         loss_decimal_separator: str = ".",
         decode_from_loss: float | None = None,
+        log_every_batches: int = 1,
         sort_by_loss_desc: bool = False,
     ) -> None:
         self._bounds = _validate_upper_bounds(upper_bounds)
@@ -97,6 +98,7 @@ class Splitter:
         self._csv_delimiter = csv_delimiter
         self._loss_decimal_separator = loss_decimal_separator
         self._decode_from_loss = decode_from_loss
+        self._log_every_batches = log_every_batches
         self._sort_by_loss_desc = sort_by_loss_desc
         self._collate_s = self._h2d_s = self._forward_s = self._post_s = self._decode_s = self._write_s = self._gpu_poll_s = self._batch_total_s = 0.0; self._timed_batches = self._timed_examples = 0
 
@@ -141,11 +143,12 @@ class Splitter:
                 batch.append(dict(row))
                 if len(batch) == batch_size:
                     batch_index += 1
-                    _LOG.info(
-                        self._batch_message(
-                            batch_index, total_batches, len(batch), processed_examples
+                    if batch_index % self._log_every_batches == 0:
+                        _LOG.info(
+                            self._batch_message(
+                                batch_index, total_batches, len(batch), processed_examples
+                            )
                         )
-                    )
                     self._flush_batch(batch, scorer, writers)
                     processed_examples += len(batch)
                     batch.clear()

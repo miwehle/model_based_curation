@@ -104,6 +104,7 @@ def split(config: SplitConfig) -> list[Path]:
             csv_delimiter=config.csv_delimiter,
             loss_decimal_separator=config.loss_decimal_separator,
             decode_from_loss=config.decode_from_loss,
+            log_every_batches=config.log_every_batches,
             sort_by_loss_desc=config.sort_by_loss_desc,
         ).split_dataset(dataset_path, scorer, batch_size=config.batch_size)
 
