@@ -3,21 +3,11 @@ local_dataset_dir: /content/datasets/iwslt2017_iwslt2017-de-en_train_8
 checkpoint_path: /content/drive/MyDrive/nmt_lab/artifacts/training_runs/2eu_10tt_1eu_5tt_5nc_1eu_5tt/checkpoint.pt
 output_dir: /content/loss_buckets
 
-upper_bounds:
-  - 0.5
-  - 1.0
-  - 1.5
-  - 2.0
-  - 2.5
-  - 3.0
-  - 3.5
-  - 4.0
-  - 4.5
-  - 5.0
-
+upper_bounds: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
 batch_size: 256
 sort_by_loss_desc: true
 device: cuda
+
 copy_buckets_to_drive_dir: /content/drive/MyDrive/nmt_lab/artifacts/loss_buckets_8
 overwrite_output: true
 csv_delimiter: ";"
