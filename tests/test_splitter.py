@@ -152,6 +152,7 @@ def test_splitter_logs_progress(caplog):
     messages = [record.getMessage() for record in caplog.records]
     assert any("Opening dataset from" in message for message in messages)
     assert any("Scoring batch 1/1" in message for message in messages)
+    assert any("gpu=" in message for message in messages)
     assert any("Sorting 2 bucket files by loss descending" in message for message in messages)
 
 
