@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from datasets import Dataset
 
-from model_based_curation.splitter import Splitter
+from model_based_curation.internal.splitter import Splitter
 
 _TMP_DIR = Path(__file__).resolve().parents[1] / ".local_tmp"
 

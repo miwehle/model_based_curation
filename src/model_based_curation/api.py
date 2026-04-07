@@ -5,9 +5,9 @@ import logging
 import shutil
 from pathlib import Path
 
-from .batch_seq2seq_loss_scorer import BatchSeq2SeqLossScorer
 from .config import SplitConfig
-from .splitter import Splitter
+from .internal.batch_seq2seq_loss_scorer import BatchSeq2SeqLossScorer
+from .internal.splitter import Splitter
 
 _LOG = logging.getLogger(__name__)
 _PACKAGE_LOG = logging.getLogger("model_based_curation")
