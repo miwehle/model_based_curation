@@ -69,6 +69,11 @@ def _strip_leading_token(token_ids: list[int], token_id: int | None) -> list[int
 
 
 def split(config: SplitConfig) -> list[Path]:
+    """Split a dataset into multiple bucket files based on example loss.
+
+    The dataset comes from ``config.dataset``, and ``config.upper_bounds`` defines
+    the bucket boundaries.
+    """
     output_dir = config.output_path
     drive_output_dir = config.drive_output_path
     _fail_if_dir_exists(output_dir, label="Local output directory")
