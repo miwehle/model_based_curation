@@ -1,17 +1,18 @@
 # Model-Based Curation
 
-## Das Big Picture
+## Big Picture
 
-`model_based_curation` unterstuetzt die manuelle und modellgestuetzte Kuration
-bestehender Trainingsdatensaetze.
+`model_based_curation` dient der modell-basierten Kuration von Trainingsdaten.
 
 Im Gesamtworkflow gibt es zwei zusammenhaengende Ablaeufe:
 
 1. DL-Pipeline:
-   `Hugging-Face-Dataset -> data_preprocessor -> Trainingsdataset -> Training des translators`
 
-2. Curations-Pipeline:
-   `Trainingsdataset -> Bewertung mit dem translator -> manuelle Sichtung der Buckets -> kuratiertes Trainingsdataset`
+   `Hugging Face dataset -> [data_preprocessor] -> train dataset -> [translator training] -> checkpoint`
+
+2. Curation-Pipeline:
+
+   `train dataset -> [split: teacher-forced loss scoring with translator] -> loss buckets -> [manual review with keep] -> reviewed buckets -> [filter] -> curated train dataset`
 
 Fuer die Curation bewertet der `translator` Beispiele aus dem Trainingsdataset
 ueber ihren Loss. `split` schreibt diese Beispiele in Loss-Buckets als
