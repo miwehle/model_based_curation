@@ -56,3 +56,33 @@ class SplitConfig:
             / self.checkpoint
             / "checkpoint.pt"
         )
+
+
+@dataclass(frozen=True, kw_only=True)
+class FilterConfig:
+    dataset: str
+    bucket_glob: str = "*.csv"
+
+    @property
+    def dataset_drive_path(self) -> Path:
+        return Path("/content/drive/MyDrive/nmt_lab/artifacts/datasets") / self.dataset
+
+    @property
+    def dataset_local_path(self) -> Path:
+        return Path("/content") / "nmt_lab" / "artifacts" / self.dataset
+
+    @property
+    def bucket_dir(self) -> Path:
+        return self.dataset_local_path / "curation" / "loss_buckets"
+
+    @property
+    def drive_bucket_dir(self) -> Path:
+        return self.dataset_drive_path / "curation" / "loss_buckets"
+
+    @property
+    def output_path(self) -> Path:
+        return self.dataset_local_path / "curation" / "filtered_dataset"
+
+    @property
+    def drive_output_path(self) -> Path:
+        return self.dataset_drive_path / "curation" / "filtered_dataset"

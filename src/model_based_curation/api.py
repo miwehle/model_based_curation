@@ -1,17 +1,19 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
 import logging
 import shutil
+from contextlib import contextmanager
 from pathlib import Path
 
-from .config import SplitConfig
+from .config import FilterConfig, SplitConfig
+from .filter import Filter
 from .split.batch_seq2seq_loss_scorer import BatchSeq2SeqLossScorer
 from .split.splitter import Splitter
 
 _LOG = logging.getLogger(__name__)
 _PACKAGE_LOG = logging.getLogger("model_based_curation")
 _LOG_FILE_NAME = "split.log"
+_FILTER_LOG_FILE_NAME = "filter.log"
 
 
 def _resolve_device():
@@ -44,6 +46,10 @@ def _copy_buckets_to_drive(output_dir: Path, drive_dir: Path) -> None:
 def _copy_log_to_drive(log_path: Path, drive_dir: Path) -> None:
     drive_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(log_path, drive_dir / log_path.name)
+
+
+def _copy_dataset_to_drive(output_dir: Path, drive_dir: Path) -> None:
+    shutil.copytree(output_dir, drive_dir)
 
 
 @contextmanager
@@ -88,7 +94,9 @@ def split(config: SplitConfig) -> list[Path]:
         _LOG.info("Preparing split for dataset %s", config.dataset)
         resolved_device = _resolve_device()
         _LOG.info(
-            "Loading checkpoint %s on device %s", config.checkpoint_file, resolved_device
+            "Loading checkpoint %s on device %s",
+            config.checkpoint_file,
+            resolved_device,
         )
         translator = Translator.from_checkpoint(config.checkpoint_file, resolved_device)
         _LOG.info("Checkpoint loaded; creating batch loss scorer")
@@ -119,3 +127,35 @@ def split(config: SplitConfig) -> list[Path]:
         _LOG.info("Copying split log to %s", drive_output_dir / log_path.name)
         _copy_log_to_drive(log_path, drive_output_dir)
     return output_paths
+
+
+def filter(config: FilterConfig) -> Path:
+    output_dir = config.output_path
+    drive_output_dir = config.drive_output_path
+    _fail_if_dir_exists(output_dir, label="Local output directory")
+    _fail_if_dir_exists(drive_output_dir, label="Drive output directory")
+
+    dataset_path = _copy_dataset_to_local_artifacts(config)
+    bucket_paths = sorted(config.bucket_dir.glob(config.bucket_glob))
+    if not bucket_paths:
+        raise ValueError(f"No bucket files found in {config.bucket_dir}")
+
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    log_path = output_dir.parent / _FILTER_LOG_FILE_NAME
+
+    with _attach_file_logger(log_path):
+        _LOG.info("Preparing filter for dataset %s", config.dataset)
+        _LOG.info(
+            "Filtering %s bucket files from %s",
+            len(bucket_paths),
+            config.bucket_dir,
+        )
+        filtered_dataset_path = Filter().filter_dataset(
+            bucket_paths, dataset_path, output_dir
+        )
+        _LOG.info("Copying filtered dataset to %s", drive_output_dir)
+        _copy_dataset_to_drive(filtered_dataset_path, drive_output_dir)
+        _LOG.info("Filter completed successfully")
+        _LOG.info("Copying filter log to %s", drive_output_dir / log_path.name)
+        _copy_log_to_drive(log_path, drive_output_dir)
+    return filtered_dataset_path
