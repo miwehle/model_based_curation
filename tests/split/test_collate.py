@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from model_based_curation.internal.collate import collate_examples
+from model_based_curation.split.collate import collate_examples
 
 
 def test_collate_examples_pads_src_and_tgt_and_returns_batch_ids():

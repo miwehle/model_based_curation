@@ -8,7 +8,7 @@ from typing import Any
 import torch
 import torch.nn as nn
 
-from model_based_curation.internal.collate import collate_examples
+from model_based_curation.split.collate import collate_examples
 
 
 class BatchSeq2SeqLossScorer:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from model_based_curation.internal.batch_seq2seq_loss_scorer import BatchSeq2SeqLossScorer
+from model_based_curation.split.batch_seq2seq_loss_scorer import BatchSeq2SeqLossScorer
 
 
 class _FakeSeq2Seq(torch.nn.Module):
