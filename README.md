@@ -24,6 +24,9 @@ So dient `model_based_curation` nicht nur zum Entfernen problematischer Daten,
 sondern auch zum Sichtbarmachen von schwierigen, aber korrekten Beispielen.
 Wiederkehrende Befunde aus den Buckets koennen spaeter genutzt werden, um die
 fruehe Filterung im `data_preprocessor` gezielt zu verbessern.
+Aus den Inhalten der Buckets lassen sich also schrittweise neue oder praezisere
+Filter fuer den `data_preprocessor` finden. So wird manuelle Kuration nach und
+nach in fruehere, automatische Qualitaetssicherung ueberfuehrt.
 
 ## Struktur
 
