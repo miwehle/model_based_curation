@@ -11,7 +11,7 @@ from time import perf_counter
 from typing import Any, Protocol
 
 Example = dict[str, Any]
-_CSV_FIELDS = ("id", "loss", "src", "tgt")
+_CSV_FIELDS = ("id", "keep", "loss", "src", "tgt")
 _NOT_DECODED = "(not decoded)"
 _LOG = logging.getLogger(__name__)
 
@@ -235,6 +235,7 @@ class Splitter:
         decode_text = self._decode_from_loss is None or loss >= self._decode_from_loss
         return {
             "id": int(example["id"]),
+            "keep": "",
             "loss": self._format_loss(loss),
             "src": self._decode_src_text(src_ids) if decode_text else _NOT_DECODED,
             "tgt": self._decode_tgt_text(tgt_ids) if decode_text else _NOT_DECODED,

@@ -21,7 +21,7 @@ def _temp_dir(prefix: str) -> Path:
 def _write_bucket(path: Path, rows: list[dict[str, str]], *, delimiter: str) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
-            handle, fieldnames=("id", "loss", "src", "tgt"), delimiter=delimiter
+            handle, fieldnames=("id", "keep", "loss", "src", "tgt"), delimiter=delimiter
         )
         writer.writeheader()
         writer.writerows(rows)
@@ -62,14 +62,14 @@ def test_filter_filters_examples_by_bucket_ids_and_updates_manifest():
 
     _write_bucket(
         bucket_1,
-        [{"id": "2", "loss": "2,1", "src": "12", "tgt": "22"}],
+        [{"id": "2", "keep": "", "loss": "2,1", "src": "12", "tgt": "22"}],
         delimiter=";",
     )
     _write_bucket(
         bucket_2,
         [
-            {"id": "4", "loss": "3.4", "src": "14", "tgt": "24"},
-            {"id": "2", "loss": "2.1", "src": "12", "tgt": "22"},
+            {"id": "4", "keep": "", "loss": "3.4", "src": "14", "tgt": "24"},
+            {"id": "2", "keep": "", "loss": "2.1", "src": "12", "tgt": "22"},
         ],
         delimiter=",",
     )
@@ -105,7 +105,7 @@ def test_filter_keeps_dataset_unchanged_when_no_bucket_ids_match():
     ).save_to_disk(str(dataset_dir))
     _write_bucket(
         bucket_path,
-        [{"id": "30", "loss": "1,5", "src": "13", "tgt": "23"}],
+        [{"id": "30", "keep": "", "loss": "1,5", "src": "13", "tgt": "23"}],
         delimiter=";",
     )
 
@@ -113,3 +113,32 @@ def test_filter_keeps_dataset_unchanged_when_no_bucket_ids_match():
 
     filtered = load_from_disk(str(output_dir))
     assert [int(row["id"]) for row in filtered] == [10, 20]
+
+
+def test_filter_keeps_examples_with_non_empty_keep_marker():
+    root_dir = _temp_dir("filter_keep_marker")
+    dataset_dir = root_dir / "dataset"
+    output_dir = root_dir / "filtered"
+    bucket_path = root_dir / "01_loss.csv"
+
+    from datasets import Dataset
+
+    Dataset.from_list(
+        [
+            {"id": 10, "src_ids": [11], "tgt_ids": [21]},
+            {"id": 20, "src_ids": [12], "tgt_ids": [22]},
+        ]
+    ).save_to_disk(str(dataset_dir))
+    _write_bucket(
+        bucket_path,
+        [
+            {"id": "10", "keep": "x", "loss": "1,5", "src": "11", "tgt": "21"},
+            {"id": "20", "keep": "   ", "loss": "1,8", "src": "12", "tgt": "22"},
+        ],
+        delimiter=";",
+    )
+
+    Filter().filter_dataset([bucket_path], dataset_dir, output_dir)
+
+    filtered = load_from_disk(str(output_dir))
+    assert [int(row["id"]) for row in filtered] == [10]

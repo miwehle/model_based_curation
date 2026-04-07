@@ -23,7 +23,7 @@ def _temp_dir(prefix: str) -> Path:
 def _write_bucket(path: Path, rows: list[dict[str, str]]) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
-            handle, fieldnames=("id", "loss", "src", "tgt"), delimiter=";"
+            handle, fieldnames=("id", "keep", "loss", "src", "tgt"), delimiter=";"
         )
         writer.writeheader()
         writer.writerows(rows)
@@ -76,7 +76,7 @@ def test_filter_writes_log_and_copies_dataset_to_drive(monkeypatch, caplog):
     bucket_dir.mkdir(parents=True, exist_ok=True)
     _write_bucket(
         bucket_dir / "01_loss.csv",
-        [{"id": "2", "loss": "3,1", "src": "12", "tgt": "22"}],
+        [{"id": "2", "keep": "", "loss": "3,1", "src": "12", "tgt": "22"}],
     )
     _patch_config_paths(
         monkeypatch, dataset_dir=dataset_dir, output_dir=output_dir, drive_dir=drive_dir

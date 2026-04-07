@@ -67,9 +67,13 @@ def test_splitter_writes_csv_buckets_named_by_bucket_interval():
     bucket_2 = _read_rows(output_paths[1])
     bucket_3 = _read_rows(output_paths[2])
 
-    assert bucket_1 == [{"id": "1", "loss": "0.2", "src": "11|12", "tgt": "21|22"}]
-    assert bucket_2 == [{"id": "2", "loss": "0.9", "src": "13", "tgt": "23"}]
-    assert bucket_3 == [{"id": "3", "loss": "2.3", "src": "14|15|16", "tgt": "24"}]
+    assert bucket_1 == [
+        {"id": "1", "keep": "", "loss": "0.2", "src": "11|12", "tgt": "21|22"}
+    ]
+    assert bucket_2 == [{"id": "2", "keep": "", "loss": "0.9", "src": "13", "tgt": "23"}]
+    assert bucket_3 == [
+        {"id": "3", "keep": "", "loss": "2.3", "src": "14|15|16", "tgt": "24"}
+    ]
 
 
 def test_splitter_sorts_rows_within_each_bucket_by_loss_desc():
@@ -121,7 +125,9 @@ def test_splitter_can_decode_src_and_tgt_with_different_rules():
     ).split_dataset(dataset_dir, _SingleExampleScorer(), batch_size=1)
 
     bucket_rows = _read_rows(output_paths[0])
-    assert bucket_rows == [{"id": "1", "loss": "0.2", "src": "11|12", "tgt": "21|0"}]
+    assert bucket_rows == [
+        {"id": "1", "keep": "", "loss": "0.2", "src": "11|12", "tgt": "21|0"}
+    ]
 
 
 def test_splitter_logs_progress(caplog):
@@ -213,5 +219,15 @@ def test_splitter_decodes_only_from_configured_loss_threshold():
 
     bucket_1 = _read_rows(output_paths[0])
     bucket_2 = _read_rows(output_paths[1])
-    assert bucket_1 == [{"id": "1", "loss": "0.9", "src": "(not decoded)", "tgt": "(not decoded)"}]
-    assert bucket_2 == [{"id": "2", "loss": "1.7", "src": "12", "tgt": "22"}]
+    assert bucket_1 == [
+        {
+            "id": "1",
+            "keep": "",
+            "loss": "0.9",
+            "src": "(not decoded)",
+            "tgt": "(not decoded)",
+        }
+    ]
+    assert bucket_2 == [
+        {"id": "2", "keep": "", "loss": "1.7", "src": "12", "tgt": "22"}
+    ]

@@ -35,8 +35,15 @@ class Filter:
                 reader = csv.DictReader(
                     handle, delimiter=self._resolve_csv_delimiter(handle)
                 )
-                ids.extend(int(row["id"]) for row in reader)
+                ids.extend(
+                    int(row["id"])
+                    for row in reader
+                    if not self._is_kept_bucket_row(row)
+                )
         return sorted(set(ids))
+
+    def _is_kept_bucket_row(self, row: dict[str, str]) -> bool:
+        return bool((row.get("keep") or "").strip())
 
     def _resolve_csv_delimiter(self, handle) -> str:
         sample = handle.read(1024)

@@ -103,7 +103,7 @@ def test_split_writes_log_file_and_copies_it_to_drive(monkeypatch, caplog):
 
     assert output_paths[0].is_file()
     assert _read_rows(output_paths[0], delimiter=";") == [
-        {"id": "1", "loss": "0,2", "src": "11", "tgt": "21|0"}
+        {"id": "1", "keep": "", "loss": "0,2", "src": "11", "tgt": "21|0"}
     ]
     assert local_log_path.is_file()
     assert drive_log_path.is_file()
@@ -186,7 +186,7 @@ def test_split_can_write_german_csv_format(monkeypatch):
 
     output_paths = split(config)
     assert _read_rows(output_paths[0], delimiter=";") == [
-        {"id": "1", "loss": "0,2", "src": "11", "tgt": "21|0"}
+        {"id": "1", "keep": "", "loss": "0,2", "src": "11", "tgt": "21|0"}
     ]
 
 
