@@ -1,11 +1,9 @@
 dataset: europarl_de-en_train_10000
 checkpoint: europarl
 
-upper_bounds:
-  - 0.5
-  - 1.0
-  - 1.5
-  - 2.5
+upper_bounds: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+batch_size: 256
+sort_by_loss_desc: true
 
-batch_size: 32
-sort_by_loss_desc: false
+decode_from_loss: 2.5
+use_bf16: true
