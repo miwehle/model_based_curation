@@ -40,7 +40,7 @@ def _patch_config_paths(
     monkeypatch.setattr(SplitConfig, "checkpoint_file", property(lambda self: checkpoint_file))
 
 
-def test_split_writes_log_file_and_copies_it_to_drive(monkeypatch, caplog):
+def test_split_copies_buckets_to_drive(monkeypatch, caplog):
     root_dir = _temp_dir("split_api")
     dataset_dir = root_dir / "drive_dataset"
     local_dataset_dir = root_dir / "local_artifacts" / "dataset"
@@ -105,20 +105,16 @@ def test_split_writes_log_file_and_copies_it_to_drive(monkeypatch, caplog):
     with caplog.at_level(logging.INFO):
         output_paths = split(config)
 
-    local_log_path = output_dir / "split.log"
-    drive_log_path = drive_dir / "split.log"
-
     assert output_paths[0].is_file()
     assert _read_rows(output_paths[0], delimiter=";") == [
         {"id": "1", "keep": "", "loss": "0,2", "src": "11", "tgt": "21|0"}
     ]
+    assert _read_rows(drive_dir / output_paths[0].name, delimiter=";") == [
+        {"id": "1", "keep": "", "loss": "0,2", "src": "11", "tgt": "21|0"}
+    ]
     assert (local_dataset_dir / "root.txt").read_text(encoding="utf-8") == "root"
     assert not (local_dataset_dir / "curation" / "bucket.gsheet").exists()
-    assert local_log_path.is_file()
-    assert drive_log_path.is_file()
-    assert "Preparing split for dataset" in local_log_path.read_text(encoding="utf-8")
-    assert "Split completed successfully" in drive_log_path.read_text(encoding="utf-8")
-    assert any("Copying split log to" in record.getMessage() for record in caplog.records)
+    assert any("Copying bucket files to" in record.getMessage() for record in caplog.records)
 
 
 def test_split_fails_early_when_drive_output_dir_exists(monkeypatch):

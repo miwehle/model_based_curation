@@ -11,7 +11,6 @@ def test_split_config_derives_conventional_paths_from_dataset_and_checkpoint():
         checkpoint="2eu_10tt_1eu_5tt_5nc_1eu_5tt",
         upper_bounds=(0.5, 1.5),
         batch_size=64,
-        sort_by_loss_desc=True,
     )
 
     assert cfg.dataset_drive_path == Path(
@@ -29,7 +28,6 @@ def test_split_config_derives_conventional_paths_from_dataset_and_checkpoint():
     assert cfg.checkpoint_file == Path(
         "/content/drive/MyDrive/nmt_lab/artifacts/training_runs/2eu_10tt_1eu_5tt_5nc_1eu_5tt/checkpoint.pt"
     )
-    assert cfg.sort_by_loss_desc is True
 
 
 def test_split_config_uses_german_csv_defaults():

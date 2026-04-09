@@ -76,36 +76,6 @@ def test_splitter_writes_csv_buckets_named_by_bucket_interval():
     ]
 
 
-def test_splitter_sorts_rows_within_each_bucket_by_loss_desc():
-    dataset_dir = _temp_dir("mapped_dataset_sorted")
-    output_dir = _temp_dir("bucket_output_sorted")
-    ds = Dataset.from_list(
-        [
-            {"id": 1, "src_ids": [11], "tgt_ids": [21]},
-            {"id": 2, "src_ids": [12], "tgt_ids": [22]},
-            {"id": 3, "src_ids": [13], "tgt_ids": [23]},
-        ]
-    )
-    ds.save_to_disk(str(dataset_dir))
-
-    class _SortingScorer:
-        def score_batch(self, examples: list[Mapping[str, object]]) -> list[float]:
-            mapping = {1: 0.9, 2: 0.2, 3: 0.7}
-            return [mapping[int(example["id"])] for example in examples]
-
-    output_paths = Splitter(
-        [1.5],
-        output_dir,
-        decode_src_text=_decode_text,
-        decode_tgt_text=_decode_text,
-        sort_by_loss_desc=True,
-    ).split_dataset(dataset_dir, _SortingScorer(), batch_size=2)
-
-    bucket_rows = _read_rows(output_paths[0])
-    assert [row["id"] for row in bucket_rows] == ["1", "3", "2"]
-    assert [row["loss"] for row in bucket_rows] == ["0.9", "0.7", "0.2"]
-
-
 def test_splitter_can_decode_src_and_tgt_with_different_rules():
     dataset_dir = _temp_dir("mapped_dataset_decoder_rules")
     output_dir = _temp_dir("bucket_output_decoder_rules")
@@ -152,14 +122,12 @@ def test_splitter_logs_progress(caplog):
             output_dir,
             decode_src_text=_decode_text,
             decode_tgt_text=_decode_text,
-            sort_by_loss_desc=True,
         ).split_dataset(dataset_dir, _LoggedScorer(), batch_size=2)
 
     messages = [record.getMessage() for record in caplog.records]
     assert any("Opening dataset from" in message for message in messages)
     assert any("Scoring batch 1/1" in message for message in messages)
     assert any("gpu=" in message for message in messages)
-    assert any("Sorting 2 bucket files by loss descending" in message for message in messages)
 
 
 def test_splitter_can_write_semicolon_csv_with_german_decimal_separator():
@@ -185,7 +153,6 @@ def test_splitter_can_write_semicolon_csv_with_german_decimal_separator():
         decode_tgt_text=_decode_text,
         csv_delimiter=";",
         loss_decimal_separator=",",
-        sort_by_loss_desc=True,
     ).split_dataset(dataset_dir, _GermanCsvScorer(), batch_size=2)
 
     bucket_rows = _read_rows(output_paths[0], delimiter=";")

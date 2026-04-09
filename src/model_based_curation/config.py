@@ -13,7 +13,6 @@ class SplitConfig:
     loss_decimal_separator: str = ","
     batch_size: int = 32
     log_every_batches: int = 50
-    sort_by_loss_desc: bool = False
     use_bf16: bool = False
     decode_from_loss: float | None = None
 

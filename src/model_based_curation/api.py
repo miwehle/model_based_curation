@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import shutil
-from contextlib import contextmanager
 from pathlib import Path
 
 from .config import FilterConfig, SplitConfig
@@ -11,8 +10,6 @@ from .split.batch_seq2seq_loss_scorer import BatchSeq2SeqLossScorer
 from .split.splitter import Splitter
 
 _LOG = logging.getLogger(__name__)
-_PACKAGE_LOG = logging.getLogger("model_based_curation")
-_LOG_FILE_NAME = "split.log"
 _FILTER_LOG_FILE_NAME = "filter.log"
 
 
@@ -46,29 +43,8 @@ def _copy_buckets_to_drive(output_dir: Path, drive_dir: Path) -> None:
         shutil.copy2(path, drive_dir / path.name)
 
 
-def _copy_log_to_drive(log_path: Path, drive_dir: Path) -> None:
-    drive_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(log_path, drive_dir / log_path.name)
-
-
 def _copy_dataset_to_drive(output_dir: Path, drive_dir: Path) -> None:
     shutil.copytree(output_dir, drive_dir)
-
-
-@contextmanager
-def _attach_file_logger(log_path: Path):
-    handler = logging.FileHandler(log_path, encoding="utf-8")
-    handler.setLevel(logging.INFO)
-    handler.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
-    )
-    _PACKAGE_LOG.addHandler(handler)
-    try:
-        yield
-    finally:
-        handler.flush()
-        handler.close()
-        _PACKAGE_LOG.removeHandler(handler)
 
 
 def _strip_leading_token(token_ids: list[int], token_id: int | None) -> list[int]:
@@ -91,47 +67,31 @@ def split(config: SplitConfig) -> list[Path]:
 
     dataset_path = _copy_dataset_to_local_artifacts(config)
     output_dir.mkdir(parents=True, exist_ok=True)
-    log_path = output_dir / _LOG_FILE_NAME
-
-    with _attach_file_logger(log_path):
-        _LOG.info("Preparing split for dataset %s", config.dataset)
-        resolved_device = _resolve_device()
-        _LOG.info(
-            "Loading checkpoint %s on device %s",
-            config.checkpoint_file,
-            resolved_device,
-        )
-
-        translator = Translator.from_checkpoint(config.checkpoint_file, resolved_device)
-        _LOG.info("Checkpoint loaded; creating batch loss scorer")
-        scorer = BatchSeq2SeqLossScorer(
-            translator.model,
-            device=translator.device,
-            src_pad_id=translator.model.src_pad_idx,
-            tgt_pad_id=translator.model.tgt_pad_idx,
-            use_bf16=config.use_bf16,
-        )
-
-        # core
-        output_paths = Splitter(
-            config.upper_bounds,
-            output_dir,
-            decode_src_text=lambda token_ids: translator.tokenizer.decode(token_ids),
-            decode_tgt_text=lambda token_ids: translator.tokenizer.decode(
-                _strip_leading_token(token_ids, translator.tgt_bos_id)
-            ),
-            csv_delimiter=config.csv_delimiter,
-            loss_decimal_separator=config.loss_decimal_separator,
-            decode_from_loss=config.decode_from_loss,
-            log_every_batches=config.log_every_batches,
-            sort_by_loss_desc=config.sort_by_loss_desc,
-        ).split_dataset(dataset_path, scorer, batch_size=config.batch_size)
-
-        _LOG.info("Copying bucket files to %s", drive_output_dir)
-        _copy_buckets_to_drive(output_dir, drive_output_dir)
-        _LOG.info("Split completed successfully")
-        _LOG.info("Copying split log to %s", drive_output_dir / log_path.name)
-        _copy_log_to_drive(log_path, drive_output_dir)
+    _LOG.info("Preparing split for dataset %s", config.dataset)
+    resolved_device = _resolve_device()
+    _LOG.info("Loading checkpoint %s on device %s", config.checkpoint_file, resolved_device)
+    translator = Translator.from_checkpoint(config.checkpoint_file, resolved_device)
+    scorer = BatchSeq2SeqLossScorer(
+        translator.model,
+        device=translator.device,
+        src_pad_id=translator.model.src_pad_idx,
+        tgt_pad_id=translator.model.tgt_pad_idx,
+        use_bf16=config.use_bf16,
+    )
+    output_paths = Splitter(
+        config.upper_bounds,
+        output_dir,
+        decode_src_text=lambda token_ids: translator.tokenizer.decode(token_ids),
+        decode_tgt_text=lambda token_ids: translator.tokenizer.decode(
+            _strip_leading_token(token_ids, translator.tgt_bos_id)
+        ),
+        csv_delimiter=config.csv_delimiter,
+        loss_decimal_separator=config.loss_decimal_separator,
+        decode_from_loss=config.decode_from_loss,
+        log_every_batches=config.log_every_batches,
+    ).split_dataset(dataset_path, scorer, batch_size=config.batch_size)
+    _LOG.info("Copying bucket files to %s", drive_output_dir)
+    _copy_buckets_to_drive(output_dir, drive_output_dir)
     return output_paths
 
 
