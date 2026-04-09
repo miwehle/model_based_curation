@@ -33,7 +33,10 @@ def _copy_dataset_to_local_artifacts(config: SplitConfig) -> Path:
     if target.exists():
         return target
     target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(source, target)
+    target.mkdir()
+    for path in source.iterdir():
+        if path.is_file():
+            shutil.copy2(path, target / path.name)
     return target
 
 

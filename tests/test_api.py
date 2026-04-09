@@ -42,12 +42,16 @@ def _patch_config_paths(
 
 def test_split_writes_log_file_and_copies_it_to_drive(monkeypatch, caplog):
     root_dir = _temp_dir("split_api")
-    dataset_dir = root_dir / "dataset"
+    dataset_dir = root_dir / "drive_dataset"
+    local_dataset_dir = root_dir / "local_artifacts" / "dataset"
     output_dir = root_dir / "local_artifacts" / "dataset" / "curation" / "loss_buckets"
     drive_dir = root_dir / "drive_artifacts" / "dataset" / "curation" / "loss_buckets"
     Dataset.from_list([{"id": 1, "src_ids": [11], "tgt_ids": [99, 21, 0]}]).save_to_disk(
         str(dataset_dir)
     )
+    (dataset_dir / "root.txt").write_text("root", encoding="utf-8")
+    (dataset_dir / "curation").mkdir()
+    (dataset_dir / "curation" / "bucket.gsheet").write_text("skip", encoding="utf-8")
 
     class _FakeTokenizer:
         def decode(self, token_ids: list[int]) -> str:
@@ -88,6 +92,9 @@ def test_split_writes_log_file_and_copies_it_to_drive(monkeypatch, caplog):
         drive_dir=drive_dir,
         checkpoint_file=root_dir / "checkpoint.pt",
     )
+    monkeypatch.setattr(
+        SplitConfig, "dataset_local_path", property(lambda self: local_dataset_dir)
+    )
 
     config = SplitConfig(
         dataset="dataset",
@@ -105,6 +112,8 @@ def test_split_writes_log_file_and_copies_it_to_drive(monkeypatch, caplog):
     assert _read_rows(output_paths[0], delimiter=";") == [
         {"id": "1", "keep": "", "loss": "0,2", "src": "11", "tgt": "21|0"}
     ]
+    assert (local_dataset_dir / "root.txt").read_text(encoding="utf-8") == "root"
+    assert not (local_dataset_dir / "curation" / "bucket.gsheet").exists()
     assert local_log_path.is_file()
     assert drive_log_path.is_file()
     assert "Preparing split for dataset" in local_log_path.read_text(encoding="utf-8")
