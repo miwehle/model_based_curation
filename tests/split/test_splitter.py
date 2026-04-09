@@ -85,13 +85,13 @@ def test_splitter_writes_csv_buckets_named_by_bucket_interval():
         {"id": "3", "keep": "", "loss": "2.3", "src": "14|15|16", "tgt": "24"}
     ]
     assert _read_yaml(output_dir / "bucket_stats.yaml") == {
-        "buckets": [[0.0, 0.5, 1], [0.5, 1.5, 1], [1.5, None, 1]]
+        "buckets": [[0.0, 0.5, 1], [0.5, 1.5, 1], [1.5, 2.3, 1]]
     }
     assert _read_text(output_dir / "bucket_stats.yaml") == (
         "buckets:\n"
         "- [0.0, 0.5, 1]\n"
         "- [0.5, 1.5, 1]\n"
-        "- [1.5, null, 1]\n"
+        "- [1.5, 2.3, 1]\n"
     )
 
 
@@ -177,6 +177,7 @@ def test_splitter_can_write_semicolon_csv_with_german_decimal_separator():
     bucket_rows = _read_rows(output_paths[0], delimiter=";")
     assert [row["id"] for row in bucket_rows] == ["1", "2"]
     assert [row["loss"] for row in bucket_rows] == ["0,9", "0,2"]
+    assert _read_yaml(output_dir / "bucket_stats.yaml") == {"buckets": [[0.0, 1.5, 2]]}
 
 
 def test_splitter_decodes_at_least_n_examples_per_bucket_before_threshold():

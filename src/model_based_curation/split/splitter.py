@@ -148,6 +148,7 @@ class Splitter:
                 writer.writeheader()
             examples_per_bucket = [0] * len(writers)
             decoded_per_bucket = [0] * len(writers)
+            max_losses = [None] * len(writers)
             for row in dataset:
                 batch.append(dict(row))
                 if len(batch) == batch_size:
@@ -158,7 +159,9 @@ class Splitter:
                                 batch_index, total_batches, len(batch), processed_examples
                             )
                         )
-                    self._flush_batch(batch, scorer, writers, examples_per_bucket, decoded_per_bucket)
+                    self._flush_batch(
+                        batch, scorer, writers, examples_per_bucket, decoded_per_bucket, max_losses
+                    )
                     processed_examples += len(batch)
                     batch.clear()
             if batch:
@@ -168,9 +171,11 @@ class Splitter:
                         batch_index, total_batches, len(batch), processed_examples
                     )
                 )
-            self._flush_batch(batch, scorer, writers, examples_per_bucket, decoded_per_bucket)
+            self._flush_batch(
+                batch, scorer, writers, examples_per_bucket, decoded_per_bucket, max_losses
+            )
             processed_examples += len(batch)
-        self._write_bucket_stats(examples_per_bucket)
+        self._write_bucket_stats(examples_per_bucket, max_losses[-1])
 
         _LOG.info(
             "Finished split with %s processed examples into %s buckets",
@@ -209,6 +214,7 @@ class Splitter:
         writers: Sequence[csv.DictWriter[str]],
         examples_per_bucket: list[int],
         decoded_per_bucket: list[int],
+        max_losses: list[float | None],
     ) -> None:
         if not batch:
             return
@@ -218,6 +224,7 @@ class Splitter:
         for example, loss in zip(batch, losses, strict=True):
             writer_index = _bucket_index(float(loss), self._bounds)
             examples_per_bucket[writer_index] += 1
+            max_losses[writer_index] = loss if max_losses[writer_index] is None else max(max_losses[writer_index], loss)
             decode_text = (
                 decoded_per_bucket[writer_index] < self._decode_at_least
                 or self._decode_from_loss is None
@@ -227,13 +234,21 @@ class Splitter:
             writers[writer_index].writerow(row)
             decoded_per_bucket[writer_index] += int(decode_text)
 
-    def _write_bucket_stats(self, examples_per_bucket: Sequence[int]) -> None:
-        stats = {
-            "buckets": [
-                _FlowSeq([0.0 if i == 0 else self._bounds[i - 1], None if i == len(self._bounds) else self._bounds[i], count])
-                for i, count in enumerate(examples_per_bucket)
-            ]
-        }
+    def _write_bucket_stats(
+        self, examples_per_bucket: Sequence[int], max_loss_in_last_bucket: float | None
+    ) -> None:
+        buckets = [
+            _FlowSeq(
+                [0.0 if i == 0 else self._bounds[i - 1], None if i == len(self._bounds) else self._bounds[i], count]
+            )
+            for i, count in enumerate(examples_per_bucket)
+        ]
+        if buckets and buckets[-1][1] is None:
+            if buckets[-1][2] == 0:
+                buckets.pop()
+            else:
+                buckets[-1][1] = max_loss_in_last_bucket
+        stats = {"buckets": buckets}
         with (self._output_dir / "bucket_stats.yaml").open("w", encoding="utf-8") as handle:
             yaml.safe_dump(stats, handle, sort_keys=False)
 
