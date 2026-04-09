@@ -15,6 +15,10 @@ _CSV_FIELDS = ("id", "keep", "loss", "src", "tgt")
 _LOG = logging.getLogger(__name__)
 
 
+class _FlowSeq(list):
+    pass
+
+
 class BatchLossScorer(Protocol):
     def score_batch(self, examples: list[Mapping[str, Any]]) -> list[float]: ...
 
@@ -74,6 +78,12 @@ def _bucket_filename(bucket_index: int, upper_bounds: Sequence[float]) -> str:
         else _format_bound(upper_bounds[bucket_index])
     )
     return f"{bucket_id:02d}_loss_{_format_bound(lower)}_to_{upper}.csv"
+
+
+yaml.SafeDumper.add_representer(
+    _FlowSeq,
+    lambda dumper, data: dumper.represent_sequence("tag:yaml.org,2002:seq", data, flow_style=True),
+)
 
 
 class Splitter:
@@ -220,11 +230,7 @@ class Splitter:
     def _write_bucket_stats(self, examples_per_bucket: Sequence[int]) -> None:
         stats = {
             "buckets": [
-                {
-                    "lower": 0.0 if i == 0 else self._bounds[i - 1],
-                    "upper": None if i == len(self._bounds) else self._bounds[i],
-                    "count": count,
-                }
+                _FlowSeq([0.0 if i == 0 else self._bounds[i - 1], None if i == len(self._bounds) else self._bounds[i], count])
                 for i, count in enumerate(examples_per_bucket)
             ]
         }

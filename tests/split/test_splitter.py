@@ -45,6 +45,10 @@ def _read_yaml(path: Path) -> dict[str, object]:
         return yaml.safe_load(handle)
 
 
+def _read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
 def test_splitter_writes_csv_buckets_named_by_bucket_interval():
     dataset_dir = _temp_dir("mapped_dataset_splitter")
     output_dir = _temp_dir("bucket_output_splitter")
@@ -81,12 +85,14 @@ def test_splitter_writes_csv_buckets_named_by_bucket_interval():
         {"id": "3", "keep": "", "loss": "2.3", "src": "14|15|16", "tgt": "24"}
     ]
     assert _read_yaml(output_dir / "bucket_stats.yaml") == {
-        "buckets": [
-            {"lower": 0.0, "upper": 0.5, "count": 1},
-            {"lower": 0.5, "upper": 1.5, "count": 1},
-            {"lower": 1.5, "upper": None, "count": 1},
-        ]
+        "buckets": [[0.0, 0.5, 1], [0.5, 1.5, 1], [1.5, None, 1]]
     }
+    assert _read_text(output_dir / "bucket_stats.yaml") == (
+        "buckets:\n"
+        "- [0.0, 0.5, 1]\n"
+        "- [0.5, 1.5, 1]\n"
+        "- [1.5, null, 1]\n"
+    )
 
 
 def test_splitter_can_decode_src_and_tgt_with_different_rules():
