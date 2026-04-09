@@ -39,7 +39,9 @@ def _copy_dataset_to_local_artifacts(config: SplitConfig) -> Path:
 
 def _copy_buckets_to_drive(output_dir: Path, drive_dir: Path) -> None:
     drive_dir.mkdir(parents=True, exist_ok=True)
-    for path in output_dir.glob("*.csv"):
+    for path in output_dir.glob("*"):
+        if not path.is_file():
+            continue
         shutil.copy2(path, drive_dir / path.name)
 
 

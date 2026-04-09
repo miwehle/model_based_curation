@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from datasets import Dataset
 import pytest
+import yaml
 
 from model_based_curation import SplitConfig, split
 
@@ -18,6 +19,11 @@ _TMP_DIR = Path(__file__).resolve().parents[1] / ".local_tmp"
 def _read_rows(path: Path, *, delimiter: str = ",") -> list[dict[str, str]]:
     with path.open("r", encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle, delimiter=delimiter))
+
+
+def _read_yaml(path: Path) -> dict[str, object]:
+    with path.open("r", encoding="utf-8") as handle:
+        return yaml.safe_load(handle)
 
 
 def _temp_dir(prefix: str) -> Path:
@@ -112,6 +118,12 @@ def test_split_copies_buckets_to_drive(monkeypatch, caplog):
     assert _read_rows(drive_dir / output_paths[0].name, delimiter=";") == [
         {"id": "1", "keep": "", "loss": "0,2", "src": "11", "tgt": "21|0"}
     ]
+    assert _read_yaml(drive_dir / "bucket_stats.yaml") == {
+        "buckets": [
+            {"lower": 0.0, "upper": 0.5, "count": 1},
+            {"lower": 0.5, "upper": None, "count": 0},
+        ]
+    }
     assert (local_dataset_dir / "root.txt").read_text(encoding="utf-8") == "root"
     assert not (local_dataset_dir / "curation" / "bucket.gsheet").exists()
     assert any("Copying bucket files to" in record.getMessage() for record in caplog.records)

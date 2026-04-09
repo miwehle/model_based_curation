@@ -7,6 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from datasets import Dataset
+import yaml
 
 from model_based_curation.split.splitter import Splitter
 
@@ -37,6 +38,11 @@ def _read_rows(path: Path, *, delimiter: str = ",") -> list[dict[str, str]]:
 
 def _decode_text(token_ids: list[int]) -> str:
     return "|".join(str(token_id) for token_id in token_ids)
+
+
+def _read_yaml(path: Path) -> dict[str, object]:
+    with path.open("r", encoding="utf-8") as handle:
+        return yaml.safe_load(handle)
 
 
 def test_splitter_writes_csv_buckets_named_by_bucket_interval():
@@ -74,6 +80,13 @@ def test_splitter_writes_csv_buckets_named_by_bucket_interval():
     assert bucket_3 == [
         {"id": "3", "keep": "", "loss": "2.3", "src": "14|15|16", "tgt": "24"}
     ]
+    assert _read_yaml(output_dir / "bucket_stats.yaml") == {
+        "buckets": [
+            {"lower": 0.0, "upper": 0.5, "count": 1},
+            {"lower": 0.5, "upper": 1.5, "count": 1},
+            {"lower": 1.5, "upper": None, "count": 1},
+        ]
+    }
 
 
 def test_splitter_can_decode_src_and_tgt_with_different_rules():

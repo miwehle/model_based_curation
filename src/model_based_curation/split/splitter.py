@@ -8,6 +8,7 @@ from math import ceil
 from pathlib import Path
 import subprocess
 from typing import Any, Protocol
+import yaml
 
 Example = dict[str, Any]
 _CSV_FIELDS = ("id", "keep", "loss", "src", "tgt")
@@ -135,6 +136,7 @@ class Splitter:
             ]
             for writer in writers:
                 writer.writeheader()
+            examples_per_bucket = [0] * len(writers)
             decoded_per_bucket = [0] * len(writers)
             for row in dataset:
                 batch.append(dict(row))
@@ -146,7 +148,7 @@ class Splitter:
                                 batch_index, total_batches, len(batch), processed_examples
                             )
                         )
-                    self._flush_batch(batch, scorer, writers, decoded_per_bucket)
+                    self._flush_batch(batch, scorer, writers, examples_per_bucket, decoded_per_bucket)
                     processed_examples += len(batch)
                     batch.clear()
             if batch:
@@ -156,8 +158,9 @@ class Splitter:
                         batch_index, total_batches, len(batch), processed_examples
                     )
                 )
-            self._flush_batch(batch, scorer, writers, decoded_per_bucket)
+            self._flush_batch(batch, scorer, writers, examples_per_bucket, decoded_per_bucket)
             processed_examples += len(batch)
+        self._write_bucket_stats(examples_per_bucket)
 
         _LOG.info(
             "Finished split with %s processed examples into %s buckets",
@@ -194,6 +197,7 @@ class Splitter:
         batch: list[Example],
         scorer: BatchLossScorer,
         writers: Sequence[csv.DictWriter[str]],
+        examples_per_bucket: list[int],
         decoded_per_bucket: list[int],
     ) -> None:
         if not batch:
@@ -203,6 +207,7 @@ class Splitter:
             raise ValueError("score_batch must return one loss per example.")
         for example, loss in zip(batch, losses, strict=True):
             writer_index = _bucket_index(float(loss), self._bounds)
+            examples_per_bucket[writer_index] += 1
             decode_text = (
                 decoded_per_bucket[writer_index] < self._decode_at_least
                 or self._decode_from_loss is None
@@ -211,6 +216,20 @@ class Splitter:
             row = self._csv_row(example, float(loss), decode_text=decode_text)
             writers[writer_index].writerow(row)
             decoded_per_bucket[writer_index] += int(decode_text)
+
+    def _write_bucket_stats(self, examples_per_bucket: Sequence[int]) -> None:
+        stats = {
+            "buckets": [
+                {
+                    "lower": 0.0 if i == 0 else self._bounds[i - 1],
+                    "upper": None if i == len(self._bounds) else self._bounds[i],
+                    "count": count,
+                }
+                for i, count in enumerate(examples_per_bucket)
+            ]
+        }
+        with (self._output_dir / "bucket_stats.yaml").open("w", encoding="utf-8") as handle:
+            yaml.safe_dump(stats, handle, sort_keys=False)
 
     def _csv_row(
         self, example: Mapping[str, Any], loss: float, *, decode_text: bool
