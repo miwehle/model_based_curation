@@ -98,6 +98,7 @@ def split(config: SplitConfig) -> list[Path]:
             config.checkpoint_file,
             resolved_device,
         )
+
         translator = Translator.from_checkpoint(config.checkpoint_file, resolved_device)
         _LOG.info("Checkpoint loaded; creating batch loss scorer")
         scorer = BatchSeq2SeqLossScorer(
@@ -107,6 +108,8 @@ def split(config: SplitConfig) -> list[Path]:
             tgt_pad_id=translator.model.tgt_pad_idx,
             use_bf16=config.use_bf16,
         )
+
+        # core
         output_paths = Splitter(
             config.upper_bounds,
             output_dir,
