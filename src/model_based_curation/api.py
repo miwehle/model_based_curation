@@ -88,6 +88,7 @@ def split(config: SplitConfig) -> list[Path]:
         csv_delimiter=config.csv_delimiter,
         loss_decimal_separator=config.loss_decimal_separator,
         decode_from_loss=config.decode_from_loss,
+        decode_at_least=config.decode_at_least,
         log_every_batches=config.log_every_batches,
     ).split_dataset(dataset_path, scorer, batch_size=config.batch_size)
     _LOG.info("Copying bucket files to %s", drive_output_dir)

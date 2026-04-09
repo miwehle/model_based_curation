@@ -36,6 +36,7 @@ def test_split_config_uses_german_csv_defaults():
     assert cfg.csv_delimiter == ";"
     assert cfg.loss_decimal_separator == ","
     assert cfg.log_every_batches == 50
+    assert cfg.decode_at_least == 10
 
 
 def test_split_config_validates_csv_format_options():
@@ -88,3 +89,15 @@ def test_split_config_validates_csv_format_options():
         assert str(exc) == "decode_from_loss must be non-negative."
     else:
         raise AssertionError("Expected ValueError for negative decode_from_loss.")
+
+    try:
+        SplitConfig(
+            dataset="dataset",
+            checkpoint="run",
+            upper_bounds=(0.5, 1.5),
+            decode_at_least=-1,
+        )
+    except ValueError as exc:
+        assert str(exc) == "decode_at_least must be non-negative."
+    else:
+        raise AssertionError("Expected ValueError for negative decode_at_least.")

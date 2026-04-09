@@ -160,20 +160,22 @@ def test_splitter_can_write_semicolon_csv_with_german_decimal_separator():
     assert [row["loss"] for row in bucket_rows] == ["0,9", "0,2"]
 
 
-def test_splitter_decodes_only_from_configured_loss_threshold():
-    dataset_dir = _temp_dir("mapped_dataset_decode_threshold")
-    output_dir = _temp_dir("bucket_output_decode_threshold")
+def test_splitter_decodes_at_least_n_examples_per_bucket_before_threshold():
+    dataset_dir = _temp_dir("mapped_dataset_decode_rules")
+    output_dir = _temp_dir("bucket_output_decode_rules")
     ds = Dataset.from_list(
         [
             {"id": 1, "src_ids": [11], "tgt_ids": [21]},
             {"id": 2, "src_ids": [12], "tgt_ids": [22]},
+            {"id": 3, "src_ids": [13], "tgt_ids": [23]},
+            {"id": 4, "src_ids": [14], "tgt_ids": [24]},
         ]
     )
     ds.save_to_disk(str(dataset_dir))
 
     class _ThresholdScorer:
         def score_batch(self, examples: list[Mapping[str, object]]) -> list[float]:
-            mapping = {1: 0.9, 2: 1.7}
+            mapping = {1: 0.1, 2: 0.2, 3: 1.7, 4: 0.3}
             return [mapping[int(example["id"])] for example in examples]
 
     output_paths = Splitter(
@@ -182,19 +184,14 @@ def test_splitter_decodes_only_from_configured_loss_threshold():
         decode_src_text=_decode_text,
         decode_tgt_text=_decode_text,
         decode_from_loss=1.0,
-    ).split_dataset(dataset_dir, _ThresholdScorer(), batch_size=2)
+        decode_at_least=2,
+    ).split_dataset(dataset_dir, _ThresholdScorer(), batch_size=4)
 
-    bucket_1 = _read_rows(output_paths[0])
-    bucket_2 = _read_rows(output_paths[1])
-    assert bucket_1 == [
-        {
-            "id": "1",
-            "keep": "",
-            "loss": "0.9",
-            "src": "(not decoded)",
-            "tgt": "(not decoded)",
-        }
+    assert _read_rows(output_paths[0]) == [
+        {"id": "1", "keep": "", "loss": "0.1", "src": "11", "tgt": "21"},
+        {"id": "2", "keep": "", "loss": "0.2", "src": "12", "tgt": "22"},
+        {"id": "4", "keep": "", "loss": "0.3", "src": "", "tgt": ""},
     ]
-    assert bucket_2 == [
-        {"id": "2", "keep": "", "loss": "1.7", "src": "12", "tgt": "22"}
+    assert _read_rows(output_paths[1]) == [
+        {"id": "3", "keep": "", "loss": "1.7", "src": "13", "tgt": "23"},
     ]
