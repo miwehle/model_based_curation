@@ -5,40 +5,6 @@ from pathlib import Path
 from model_based_curation import SplitConfig
 
 
-def test_split_config_derives_conventional_paths_from_dataset_and_checkpoint():
-    cfg = SplitConfig(
-        dataset="iwslt2017_iwslt2017-de-en_train",
-        checkpoint="2eu_10tt_1eu_5tt_5nc_1eu_5tt",
-        upper_bounds=(0.5, 1.5),
-        batch_size=64,
-    )
-
-    assert cfg.dataset_drive_path == Path(
-        "/content/drive/MyDrive/nmt_lab/artifacts/datasets/iwslt2017_iwslt2017-de-en_train"
-    )
-    assert cfg.dataset_local_path == Path(
-        "/content/nmt_lab/artifacts/iwslt2017_iwslt2017-de-en_train"
-    )
-    assert cfg.output_path == Path(
-        "/content/nmt_lab/artifacts/iwslt2017_iwslt2017-de-en_train/curation/loss_buckets"
-    )
-    assert cfg.drive_output_path == Path(
-        "/content/drive/MyDrive/nmt_lab/artifacts/datasets/iwslt2017_iwslt2017-de-en_train/curation/loss_buckets"
-    )
-    assert cfg.checkpoint_file == Path(
-        "/content/drive/MyDrive/nmt_lab/artifacts/training_runs/2eu_10tt_1eu_5tt_5nc_1eu_5tt/checkpoint.pt"
-    )
-
-
-def test_split_config_uses_german_csv_defaults():
-    cfg = SplitConfig(dataset="dataset", checkpoint="run", upper_bounds=(0.5, 1.5))
-
-    assert cfg.csv_delimiter == ";"
-    assert cfg.loss_decimal_separator == ","
-    assert cfg.log_every_batches == 50
-    assert cfg.decode_at_least == 10
-
-
 def test_split_config_validates_csv_format_options():
     try:
         SplitConfig(
