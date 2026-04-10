@@ -35,7 +35,7 @@ class SplitConfig:
 
     @property
     def dataset_local_path(self) -> Path:
-        return Path("/content") / "nmt_lab" / "artifacts" / self.dataset
+        return Path("/content") / "nmt_lab" / "artifacts" / "datasets" / self.dataset
 
     @property
     def output_path(self) -> Path:
@@ -71,7 +71,7 @@ class FilterConfig:
 
     @property
     def dataset_local_path(self) -> Path:
-        return Path("/content") / "nmt_lab" / "artifacts" / self.dataset
+        return Path("/content") / "nmt_lab" / "artifacts" / "datasets" / self.dataset
 
     @property
     def bucket_dir(self) -> Path:

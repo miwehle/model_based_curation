@@ -2,7 +2,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from model_based_curation import SplitConfig
+from model_based_curation import FilterConfig, SplitConfig
+
+
+def test_configs_use_local_datasets_directory():
+    assert SplitConfig(
+        dataset="dataset",
+        checkpoint="run",
+        upper_bounds=(0.5, 1.5),
+    ).dataset_local_path == Path("/content/nmt_lab/artifacts/datasets/dataset")
+    assert FilterConfig(dataset="dataset").dataset_local_path == Path(
+        "/content/nmt_lab/artifacts/datasets/dataset"
+    )
 
 
 def test_split_config_validates_csv_format_options():
