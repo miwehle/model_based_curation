@@ -10,7 +10,6 @@ from .split.batch_seq2seq_loss_scorer import BatchSeq2SeqLossScorer
 from .split.splitter import Splitter
 
 _LOG = logging.getLogger(__name__)
-_FILTER_LOG_FILE_NAME = "filter.log"
 
 
 def _resolve_device():
@@ -105,26 +104,23 @@ def filter(config: FilterConfig) -> Path:
     _fail_if_dir_exists(drive_output_dir, label="Drive output directory")
 
     dataset_path = _copy_dataset_to_local_artifacts(config)
-    bucket_paths = sorted(config.bucket_dir.glob(config.bucket_glob))
+    bucket_paths = [config.bucket_dir / f"{bucket_file}.csv" for bucket_file in config.bucket_files]
     if not bucket_paths:
         raise ValueError(f"No bucket files found in {config.bucket_dir}")
 
     output_dir.parent.mkdir(parents=True, exist_ok=True)
-    log_path = output_dir.parent / _FILTER_LOG_FILE_NAME
-
-    with _attach_file_logger(log_path):
+    log_path = output_dir.parent / "filter.log"
+    handler = logging.FileHandler(log_path, encoding="utf-8")
+    logging.getLogger().addHandler(handler)
+    try:
         _LOG.info("Preparing filter for dataset %s", config.dataset)
-        _LOG.info(
-            "Filtering %s bucket files from %s",
-            len(bucket_paths),
-            config.bucket_dir,
-        )
-        filtered_dataset_path = Filter().filter_dataset(
-            bucket_paths, dataset_path, output_dir
-        )
+        _LOG.info("Filtering %s bucket files from %s", len(bucket_paths), config.bucket_dir)
+        filtered_dataset_path = Filter().filter_dataset(bucket_paths, dataset_path, output_dir)
         _LOG.info("Copying filtered dataset to %s", drive_output_dir)
         _copy_dataset_to_drive(filtered_dataset_path, drive_output_dir)
         _LOG.info("Filter completed successfully")
-        _LOG.info("Copying filter log to %s", drive_output_dir / log_path.name)
-        _copy_log_to_drive(log_path, drive_output_dir)
+        shutil.copy2(log_path, drive_output_dir / log_path.name)
+    finally:
+        logging.getLogger().removeHandler(handler)
+        handler.close()
     return filtered_dataset_path

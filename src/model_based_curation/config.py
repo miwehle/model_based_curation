@@ -63,7 +63,7 @@ class SplitConfig:
 @dataclass(frozen=True, kw_only=True)
 class FilterConfig:
     dataset: str
-    bucket_glob: str = "*.csv"
+    bucket_files: tuple[int, ...] = ()
 
     @property
     def dataset_drive_path(self) -> Path:

@@ -70,14 +70,8 @@ def _format_bound(bound: float) -> str:
 
 
 def _bucket_filename(bucket_index: int, upper_bounds: Sequence[float]) -> str:
-    bucket_id = bucket_index + 1
-    lower = 0.0 if bucket_index == 0 else upper_bounds[bucket_index - 1]
-    upper = (
-        "inf"
-        if bucket_index == len(upper_bounds)
-        else _format_bound(upper_bounds[bucket_index])
-    )
-    return f"{bucket_id:02d}_loss_{_format_bound(lower)}_to_{upper}.csv"
+    del upper_bounds
+    return f"{bucket_index + 1}.csv"
 
 
 yaml.SafeDumper.add_representer(
@@ -240,7 +234,7 @@ class Splitter:
         buckets = [
             _FlowSeq(
                 [
-                    f"{i + 1:02d}",
+                    i + 1,
                     0.0 if i == 0 else self._bounds[i - 1],
                     None if i == len(self._bounds) else self._bounds[i],
                     count,

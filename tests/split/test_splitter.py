@@ -67,11 +67,7 @@ def test_splitter_writes_csv_buckets_named_by_bucket_interval():
     ).split_dataset(dataset_dir, scorer, batch_size=2)
 
     assert scorer.seen_batches == [[1, 2], [3]]
-    assert [path.name for path in output_paths] == [
-        "01_loss_0_to_0_5.csv",
-        "02_loss_0_5_to_1_5.csv",
-        "03_loss_1_5_to_inf.csv",
-    ]
+    assert [path.name for path in output_paths] == ["1.csv", "2.csv", "3.csv"]
 
     bucket_1 = _read_rows(output_paths[0])
     bucket_2 = _read_rows(output_paths[1])
@@ -85,13 +81,13 @@ def test_splitter_writes_csv_buckets_named_by_bucket_interval():
         {"id": "3", "keep": "", "loss": "2.3", "src": "14|15|16", "tgt": "24"}
     ]
     assert _read_yaml(output_dir / "bucket_stats.yaml") == {
-        "buckets": [["01", 0.0, 0.5, 1], ["02", 0.5, 1.5, 1], ["03", 1.5, 2.3, 1]]
+        "buckets": [[1, 0.0, 0.5, 1], [2, 0.5, 1.5, 1], [3, 1.5, 2.3, 1]]
     }
     assert _read_text(output_dir / "bucket_stats.yaml") == (
         "buckets:\n"
-        "- ['01', 0.0, 0.5, 1]\n"
-        "- ['02', 0.5, 1.5, 1]\n"
-        "- ['03', 1.5, 2.3, 1]\n"
+        "- [1, 0.0, 0.5, 1]\n"
+        "- [2, 0.5, 1.5, 1]\n"
+        "- [3, 1.5, 2.3, 1]\n"
     )
 
 
@@ -177,7 +173,7 @@ def test_splitter_can_write_semicolon_csv_with_german_decimal_separator():
     bucket_rows = _read_rows(output_paths[0], delimiter=";")
     assert [row["id"] for row in bucket_rows] == ["1", "2"]
     assert [row["loss"] for row in bucket_rows] == ["0,9", "0,2"]
-    assert _read_yaml(output_dir / "bucket_stats.yaml") == {"buckets": [["01", 0.0, 1.5, 2]]}
+    assert _read_yaml(output_dir / "bucket_stats.yaml") == {"buckets": [[1, 0.0, 1.5, 2]]}
 
 
 def test_splitter_decodes_at_least_n_examples_per_bucket_before_threshold():

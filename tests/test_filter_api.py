@@ -75,7 +75,7 @@ def test_filter_writes_log_and_copies_dataset_to_drive(monkeypatch, caplog):
         yaml.safe_dump({"num_examples": 2, "id_field": "id"}, handle, sort_keys=False)
     bucket_dir.mkdir(parents=True, exist_ok=True)
     _write_bucket(
-        bucket_dir / "01_loss.csv",
+        bucket_dir / "1.csv",
         [{"id": "2", "keep": "", "loss": "3,1", "src": "12", "tgt": "22"}],
     )
     _patch_config_paths(
@@ -83,7 +83,7 @@ def test_filter_writes_log_and_copies_dataset_to_drive(monkeypatch, caplog):
     )
 
     with caplog.at_level(logging.INFO):
-        result = filter(FilterConfig(dataset="dataset"))
+        result = filter(FilterConfig(dataset="dataset", bucket_files=(1,)))
 
     assert result == output_dir
     assert [int(row["id"]) for row in load_from_disk(str(output_dir))] == [1]
@@ -94,6 +94,42 @@ def test_filter_writes_log_and_copies_dataset_to_drive(monkeypatch, caplog):
         "Filter completed successfully" in record.getMessage()
         for record in caplog.records
     )
+
+
+def test_filter_can_use_explicit_bucket_files_subset(monkeypatch):
+    root_dir = _temp_dir("filter_api_bucket_subset")
+    dataset_dir = root_dir / "dataset"
+    bucket_dir = dataset_dir / "curation" / "loss_buckets"
+    output_dir = (
+        root_dir / "local_artifacts" / "dataset" / "curation" / "filtered_dataset"
+    )
+    drive_dir = (
+        root_dir / "drive_artifacts" / "dataset" / "curation" / "filtered_dataset"
+    )
+
+    Dataset.from_list(
+        [
+            {"id": 1, "src_ids": [11], "tgt_ids": [21]},
+            {"id": 2, "src_ids": [12], "tgt_ids": [22]},
+        ]
+    ).save_to_disk(str(dataset_dir))
+    with (dataset_dir / "dataset_manifest.yaml").open("w", encoding="utf-8") as handle:
+        yaml.safe_dump({"num_examples": 2, "id_field": "id"}, handle, sort_keys=False)
+    bucket_dir.mkdir(parents=True, exist_ok=True)
+    _write_bucket(
+        bucket_dir / "1.csv",
+        [{"id": "1", "keep": "", "loss": "0,4", "src": "11", "tgt": "21"}],
+    )
+    _write_bucket(
+        bucket_dir / "2.csv",
+        [{"id": "2", "keep": "", "loss": "0,9", "src": "12", "tgt": "22"}],
+    )
+    _patch_config_paths(
+        monkeypatch, dataset_dir=dataset_dir, output_dir=output_dir, drive_dir=drive_dir
+    )
+
+    filter(FilterConfig(dataset="dataset", bucket_files=(2,)))
+    assert [int(row["id"]) for row in load_from_disk(str(output_dir))] == [1]
 
 
 def test_filter_fails_early_when_drive_output_dir_exists(monkeypatch):
@@ -116,7 +152,7 @@ def test_filter_fails_early_when_drive_output_dir_exists(monkeypatch):
     )
 
     with pytest.raises(ValueError, match="Drive output directory already exists"):
-        filter(FilterConfig(dataset="dataset"))
+        filter(FilterConfig(dataset="dataset", bucket_files=(1,)))
 
 
 def test_filter_fails_when_no_bucket_files_exist(monkeypatch):
