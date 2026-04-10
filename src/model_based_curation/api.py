@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import logging
 import shutil
+from dataclasses import asdict
 from pathlib import Path
+
+from nmt_lab_shared import write_run_config
 
 from .config import FilterConfig, SplitConfig
 from .filter import Filter
@@ -10,6 +13,8 @@ from .split.batch_seq2seq_loss_scorer import BatchSeq2SeqLossScorer
 from .split.splitter import Splitter
 
 _LOG = logging.getLogger(__name__)
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_GIT_KEY_PREFIX = "model_based_curation"
 
 
 def _resolve_device():
@@ -68,17 +73,22 @@ def split(config: SplitConfig) -> list[Path]:
 
     dataset_path = _copy_dataset_to_local_artifacts(config)
     output_dir.mkdir(parents=True, exist_ok=True)
+    split_payload = {"split_config": asdict(config)}
+    write_run_config(
+        output_dir / "split_config.yaml", split_payload,
+        repo_root=_REPO_ROOT, git_key_prefix=_GIT_KEY_PREFIX)
     _LOG.info("Preparing split for dataset %s", config.dataset)
     resolved_device = _resolve_device()
-    _LOG.info("Loading checkpoint %s on device %s", config.checkpoint_file, resolved_device)
+    _LOG.info(
+        "Loading checkpoint %s on device %s", config.checkpoint_file, resolved_device
+    )
     translator = Translator.from_checkpoint(config.checkpoint_file, resolved_device)
     scorer = BatchSeq2SeqLossScorer(
         translator.model,
         device=translator.device,
         src_pad_id=translator.model.src_pad_idx,
         tgt_pad_id=translator.model.tgt_pad_idx,
-        use_bf16=config.use_bf16,
-    )
+        use_bf16=config.use_bf16)
     output_paths = Splitter(
         config.upper_bounds,
         output_dir,
@@ -104,7 +114,9 @@ def filter(config: FilterConfig) -> Path:
     _fail_if_dir_exists(drive_output_dir, label="Drive output directory")
 
     dataset_path = _copy_dataset_to_local_artifacts(config)
-    bucket_paths = [config.bucket_dir / f"{bucket_file}.csv" for bucket_file in config.bucket_files]
+    bucket_paths = [
+        config.bucket_dir / f"{bucket_file}.csv" for bucket_file in config.bucket_files
+    ]
     if not bucket_paths:
         raise ValueError(f"No bucket files found in {config.bucket_dir}")
 
@@ -114,8 +126,16 @@ def filter(config: FilterConfig) -> Path:
     logging.getLogger().addHandler(handler)
     try:
         _LOG.info("Preparing filter for dataset %s", config.dataset)
-        _LOG.info("Filtering %s bucket files from %s", len(bucket_paths), config.bucket_dir)
-        filtered_dataset_path = Filter().filter_dataset(bucket_paths, dataset_path, output_dir)
+        _LOG.info(
+            "Filtering %s bucket files from %s", len(bucket_paths), config.bucket_dir
+        )
+        filtered_dataset_path = Filter().filter_dataset(
+            bucket_paths, dataset_path, output_dir
+        )
+        filter_payload = {"filter_config": asdict(config)}
+        write_run_config(
+            filtered_dataset_path / "filter_config.yaml", filter_payload,
+            repo_root=_REPO_ROOT, git_key_prefix=_GIT_KEY_PREFIX)
         _LOG.info("Copying filtered dataset to %s", drive_output_dir)
         _copy_dataset_to_drive(filtered_dataset_path, drive_output_dir)
         _LOG.info("Filter completed successfully")
