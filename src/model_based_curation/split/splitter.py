@@ -239,15 +239,20 @@ class Splitter:
     ) -> None:
         buckets = [
             _FlowSeq(
-                [0.0 if i == 0 else self._bounds[i - 1], None if i == len(self._bounds) else self._bounds[i], count]
+                [
+                    f"{i + 1:02d}",
+                    0.0 if i == 0 else self._bounds[i - 1],
+                    None if i == len(self._bounds) else self._bounds[i],
+                    count,
+                ]
             )
             for i, count in enumerate(examples_per_bucket)
         ]
-        if buckets and buckets[-1][1] is None:
-            if buckets[-1][2] == 0:
+        if buckets and buckets[-1][2] is None:
+            if buckets[-1][3] == 0:
                 buckets.pop()
             else:
-                buckets[-1][1] = max_loss_in_last_bucket
+                buckets[-1][2] = max_loss_in_last_bucket
         stats = {"buckets": buckets}
         with (self._output_dir / "bucket_stats.yaml").open("w", encoding="utf-8") as handle:
             yaml.safe_dump(stats, handle, sort_keys=False)

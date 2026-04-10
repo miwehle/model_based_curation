@@ -120,8 +120,7 @@ def test_split_copies_buckets_to_drive(monkeypatch, caplog):
     ]
     assert _read_yaml(drive_dir / "bucket_stats.yaml") == {
         "buckets": [
-            {"lower": 0.0, "upper": 0.5, "count": 1},
-            {"lower": 0.5, "upper": None, "count": 0},
+            ["01", 0.0, 0.5, 1],
         ]
     }
     assert (local_dataset_dir / "root.txt").read_text(encoding="utf-8") == "root"
