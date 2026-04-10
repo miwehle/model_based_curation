@@ -1,0 +1,2 @@
+dataset: europarl_de-en_train (8)
+bucket_files: [1, 2, 3, 4, 5, 6]
