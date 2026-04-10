@@ -46,6 +46,51 @@ def _patch_config_paths(
     monkeypatch.setattr(SplitConfig, "checkpoint_file", property(lambda self: checkpoint_file))
 
 
+class _FakeTokenizer:
+    def decode(self, token_ids: list[int]) -> str:
+        return "|".join(str(token_id) for token_id in token_ids)
+
+
+class _FakeModel:
+    src_pad_idx = 0
+    tgt_pad_idx = 0
+
+
+class _FakeTranslator:
+    device = "cpu"
+
+    def __init__(self) -> None:
+        self.model = _FakeModel()
+        self.device = self.__class__.device
+        self.tokenizer = _FakeTokenizer()
+        self.tgt_bos_id = 99
+
+    @classmethod
+    def from_checkpoint(cls, checkpoint_path, device):
+        del checkpoint_path, device
+        return cls()
+
+
+class _StaticScorer:
+    def __init__(self, scores: list[float]) -> None:
+        self._scores = scores
+
+    def score_batch(self, examples):
+        del examples
+        return self._scores
+
+
+def _patch_split_runtime(monkeypatch, scorer, *, device: str = "cpu") -> None:
+    _FakeTranslator.device = device
+    fake_translator_module = types.ModuleType("translator.inference")
+    fake_translator_module.Translator = _FakeTranslator
+    monkeypatch.setitem(sys.modules, "translator.inference", fake_translator_module)
+    monkeypatch.setattr(
+        "model_based_curation.api.BatchSeq2SeqLossScorer",
+        lambda *args, **kwargs: scorer,
+    )
+
+
 def _write_bucket(path: Path, rows: list[dict[str, str]]) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
@@ -90,39 +135,7 @@ def test_split_copies_buckets_to_drive(monkeypatch, caplog):
     (dataset_dir / "root.txt").write_text("root", encoding="utf-8")
     (dataset_dir / "curation").mkdir()
     (dataset_dir / "curation" / "bucket.gsheet").write_text("skip", encoding="utf-8")
-
-    class _FakeTokenizer:
-        def decode(self, token_ids: list[int]) -> str:
-            return "|".join(str(token_id) for token_id in token_ids)
-
-    class _FakeModel:
-        src_pad_idx = 0
-        tgt_pad_idx = 0
-
-    class _FakeTranslator:
-        def __init__(self) -> None:
-            self.model = _FakeModel()
-            self.device = "cpu"
-            self.tokenizer = _FakeTokenizer()
-            self.tgt_bos_id = 99
-
-        @classmethod
-        def from_checkpoint(cls, checkpoint_path, device):
-            del checkpoint_path, device
-            return cls()
-
-    class _FakeScorer:
-        def score_batch(self, examples):
-            del examples
-            return [0.2]
-
-    fake_translator_module = types.ModuleType("translator.inference")
-    fake_translator_module.Translator = _FakeTranslator
-    monkeypatch.setitem(sys.modules, "translator.inference", fake_translator_module)
-    monkeypatch.setattr(
-        "model_based_curation.api.BatchSeq2SeqLossScorer",
-        lambda *args, **kwargs: _FakeScorer(),
-    )
+    _patch_split_runtime(monkeypatch, _StaticScorer([0.2]))
     _patch_config_paths(
         monkeypatch,
         dataset_dir=dataset_dir,
@@ -183,39 +196,7 @@ def test_split_can_write_german_csv_format(monkeypatch):
     Dataset.from_list([{"id": 1, "src_ids": [11], "tgt_ids": [99, 21, 0]}]).save_to_disk(
         str(dataset_dir)
     )
-
-    class _FakeTokenizer:
-        def decode(self, token_ids: list[int]) -> str:
-            return "|".join(str(token_id) for token_id in token_ids)
-
-    class _FakeModel:
-        src_pad_idx = 0
-        tgt_pad_idx = 0
-
-    class _FakeTranslator:
-        def __init__(self) -> None:
-            self.model = _FakeModel()
-            self.device = "cpu"
-            self.tokenizer = _FakeTokenizer()
-            self.tgt_bos_id = 99
-
-        @classmethod
-        def from_checkpoint(cls, checkpoint_path, device):
-            del checkpoint_path, device
-            return cls()
-
-    class _FakeScorer:
-        def score_batch(self, examples):
-            del examples
-            return [0.2]
-
-    fake_translator_module = types.ModuleType("translator.inference")
-    fake_translator_module.Translator = _FakeTranslator
-    monkeypatch.setitem(sys.modules, "translator.inference", fake_translator_module)
-    monkeypatch.setattr(
-        "model_based_curation.api.BatchSeq2SeqLossScorer",
-        lambda *args, **kwargs: _FakeScorer(),
-    )
+    _patch_split_runtime(monkeypatch, _StaticScorer([0.2]))
     _patch_config_paths(
         monkeypatch,
         dataset_dir=dataset_dir,
@@ -246,36 +227,7 @@ def test_split_passes_bf16_setting_to_batch_scorer(monkeypatch):
         str(dataset_dir)
     )
 
-    class _FakeTokenizer:
-        def decode(self, token_ids: list[int]) -> str:
-            return "|".join(str(token_id) for token_id in token_ids)
-
-    class _FakeModel:
-        src_pad_idx = 0
-        tgt_pad_idx = 0
-
-    class _FakeTranslator:
-        def __init__(self) -> None:
-            self.model = _FakeModel()
-            self.device = "cuda"
-            self.tokenizer = _FakeTokenizer()
-            self.tgt_bos_id = 99
-
-        @classmethod
-        def from_checkpoint(cls, checkpoint_path, device):
-            del checkpoint_path, device
-            return cls()
-
     scorer_kwargs = {}
-
-    class _FakeScorer:
-        def score_batch(self, examples):
-            del examples
-            return [0.2]
-
-    fake_translator_module = types.ModuleType("translator.inference")
-    fake_translator_module.Translator = _FakeTranslator
-    monkeypatch.setitem(sys.modules, "translator.inference", fake_translator_module)
     _patch_config_paths(
         monkeypatch,
         dataset_dir=dataset_dir,
@@ -287,8 +239,12 @@ def test_split_passes_bf16_setting_to_batch_scorer(monkeypatch):
     def _make_scorer(*args, **kwargs):
         del args
         scorer_kwargs.update(kwargs)
-        return _FakeScorer()
+        return _StaticScorer([0.2])
 
+    _FakeTranslator.device = "cuda"
+    fake_translator_module = types.ModuleType("translator.inference")
+    fake_translator_module.Translator = _FakeTranslator
+    monkeypatch.setitem(sys.modules, "translator.inference", fake_translator_module)
     monkeypatch.setattr("model_based_curation.api.BatchSeq2SeqLossScorer", _make_scorer)
 
     split(
