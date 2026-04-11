@@ -54,9 +54,7 @@ class SplitConfig:
     @property
     def checkpoint_file(self) -> Path:
         return (
-            Path("/content/drive/MyDrive/nmt_lab/artifacts/training_runs")
-            / self.checkpoint
-            / "checkpoint.pt"
+            Path("/content/drive/MyDrive/nmt_lab/artifacts/training_runs") / self.checkpoint / "checkpoint.pt"
         )
 
 

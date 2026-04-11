@@ -20,26 +20,13 @@ class _FakeSeq2Seq(torch.nn.Module):
 def test_batch_seq2seq_loss_scorer_returns_mean_token_loss_per_example():
     logits = torch.tensor(
         [
-            [
-                [0.0, 4.0, 0.0, 0.0],
-                [0.0, 0.0, 4.0, 0.0],
-                [0.0, 0.0, 0.0, 4.0],
-            ],
-            [
-                [0.0, 4.0, 0.0, 0.0],
-                [0.0, 0.0, 4.0, 0.0],
-                [4.0, 0.0, 0.0, 0.0],
-            ],
+            [[0.0, 4.0, 0.0, 0.0], [0.0, 0.0, 4.0, 0.0], [0.0, 0.0, 0.0, 4.0]],
+            [[0.0, 4.0, 0.0, 0.0], [0.0, 0.0, 4.0, 0.0], [4.0, 0.0, 0.0, 0.0]],
         ],
         dtype=torch.float,
     )
     model = _FakeSeq2Seq(logits)
-    scorer = BatchSeq2SeqLossScorer(
-        model,
-        device="cpu",
-        src_pad_id=0,
-        tgt_pad_id=0,
-    )
+    scorer = BatchSeq2SeqLossScorer(model, device="cpu", src_pad_id=0, tgt_pad_id=0)
 
     losses = scorer.score_batch(
         [
@@ -50,16 +37,12 @@ def test_batch_seq2seq_loss_scorer_returns_mean_token_loss_per_example():
 
     expected_1 = float(
         torch.nn.functional.cross_entropy(
-            logits[0:1].reshape(-1, logits.size(-1)),
-            torch.tensor([1, 2, 3]),
-            ignore_index=0,
+            logits[0:1].reshape(-1, logits.size(-1)), torch.tensor([1, 2, 3]), ignore_index=0
         ).item()
     )
     expected_2 = float(
         torch.nn.functional.cross_entropy(
-            logits[1:2].reshape(-1, logits.size(-1)),
-            torch.tensor([1, 2, 0]),
-            ignore_index=0,
+            logits[1:2].reshape(-1, logits.size(-1)), torch.tensor([1, 2, 0]), ignore_index=0
         ).item()
     )
     assert losses == pytest.approx([expected_1, expected_2])

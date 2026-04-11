@@ -16,11 +16,7 @@ def collate_examples(
     tgt_pad_id: int,
 ) -> tuple[torch.Tensor, torch.Tensor, list[int]]:
     rows = [
-        (
-            int(example[id_field]),
-            [int(x) for x in example[src_field]],
-            [int(x) for x in example[tgt_field]],
-        )
+        (int(example[id_field]), [int(x) for x in example[src_field]], [int(x) for x in example[tgt_field]])
         for example in batch
     ]
     max_src = max(len(src_ids) for _, src_ids, _ in rows)

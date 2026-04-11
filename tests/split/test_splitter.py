@@ -73,21 +73,14 @@ def test_splitter_writes_csv_buckets_named_by_bucket_interval():
     bucket_2 = _read_rows(output_paths[1])
     bucket_3 = _read_rows(output_paths[2])
 
-    assert bucket_1 == [
-        {"id": "1", "keep": "", "loss": "0.2", "src": "11|12", "tgt": "21|22"}
-    ]
+    assert bucket_1 == [{"id": "1", "keep": "", "loss": "0.2", "src": "11|12", "tgt": "21|22"}]
     assert bucket_2 == [{"id": "2", "keep": "", "loss": "0.9", "src": "13", "tgt": "23"}]
-    assert bucket_3 == [
-        {"id": "3", "keep": "", "loss": "2.3", "src": "14|15|16", "tgt": "24"}
-    ]
+    assert bucket_3 == [{"id": "3", "keep": "", "loss": "2.3", "src": "14|15|16", "tgt": "24"}]
     assert _read_yaml(output_dir / "bucket_stats.yaml") == {
         "buckets": [[1, 0.0, 0.5, 1], [2, 0.5, 1.5, 1], [3, 1.5, 2.3, 1]]
     }
     assert _read_text(output_dir / "bucket_stats.yaml") == (
-        "buckets:\n"
-        "- [1, 0.0, 0.5, 1]\n"
-        "- [2, 0.5, 1.5, 1]\n"
-        "- [3, 1.5, 2.3, 1]\n"
+        "buckets:\n" "- [1, 0.0, 0.5, 1]\n" "- [2, 0.5, 1.5, 1]\n" "- [3, 1.5, 2.3, 1]\n"
     )
 
 
@@ -110,19 +103,14 @@ def test_splitter_can_decode_src_and_tgt_with_different_rules():
     ).split_dataset(dataset_dir, _SingleExampleScorer(), batch_size=1)
 
     bucket_rows = _read_rows(output_paths[0])
-    assert bucket_rows == [
-        {"id": "1", "keep": "", "loss": "0.2", "src": "11|12", "tgt": "21|0"}
-    ]
+    assert bucket_rows == [{"id": "1", "keep": "", "loss": "0.2", "src": "11|12", "tgt": "21|0"}]
 
 
 def test_splitter_logs_progress(caplog):
     dataset_dir = _temp_dir("mapped_dataset_logged")
     output_dir = _temp_dir("bucket_output_logged")
     ds = Dataset.from_list(
-        [
-            {"id": 1, "src_ids": [11], "tgt_ids": [21]},
-            {"id": 2, "src_ids": [12], "tgt_ids": [22]},
-        ]
+        [{"id": 1, "src_ids": [11], "tgt_ids": [21]}, {"id": 2, "src_ids": [12], "tgt_ids": [22]}]
     )
     ds.save_to_disk(str(dataset_dir))
 
@@ -132,12 +120,9 @@ def test_splitter_logs_progress(caplog):
             return [0.1, 0.2]
 
     with caplog.at_level(logging.INFO):
-        Splitter(
-            [1.5],
-            output_dir,
-            decode_src_text=_decode_text,
-            decode_tgt_text=_decode_text,
-        ).split_dataset(dataset_dir, _LoggedScorer(), batch_size=2)
+        Splitter([1.5], output_dir, decode_src_text=_decode_text, decode_tgt_text=_decode_text).split_dataset(
+            dataset_dir, _LoggedScorer(), batch_size=2
+        )
 
     messages = [record.getMessage() for record in caplog.records]
     assert any("Opening dataset from" in message for message in messages)
@@ -149,10 +134,7 @@ def test_splitter_can_write_semicolon_csv_with_german_decimal_separator():
     dataset_dir = _temp_dir("mapped_dataset_german_csv")
     output_dir = _temp_dir("bucket_output_german_csv")
     ds = Dataset.from_list(
-        [
-            {"id": 1, "src_ids": [11], "tgt_ids": [21]},
-            {"id": 2, "src_ids": [12], "tgt_ids": [22]},
-        ]
+        [{"id": 1, "src_ids": [11], "tgt_ids": [21]}, {"id": 2, "src_ids": [12], "tgt_ids": [22]}]
     )
     ds.save_to_disk(str(dataset_dir))
 
@@ -208,6 +190,4 @@ def test_splitter_decodes_at_least_n_examples_per_bucket_before_threshold():
         {"id": "2", "keep": "", "loss": "0.2", "src": "12", "tgt": "22"},
         {"id": "4", "keep": "", "loss": "0.3", "src": "", "tgt": ""},
     ]
-    assert _read_rows(output_paths[1]) == [
-        {"id": "3", "keep": "", "loss": "1.7", "src": "13", "tgt": "23"},
-    ]
+    assert _read_rows(output_paths[1]) == [{"id": "3", "keep": "", "loss": "1.7", "src": "13", "tgt": "23"}]

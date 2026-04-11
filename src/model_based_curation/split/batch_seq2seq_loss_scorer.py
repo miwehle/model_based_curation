@@ -62,8 +62,7 @@ class BatchSeq2SeqLossScorer:
         with torch.inference_mode(), autocast_context:
             logits = self._model(src, tgt)
             per_token_loss = self._criterion(
-                logits.reshape(-1, logits.size(-1)),
-                tgt[:, 1:].reshape(-1),
+                logits.reshape(-1, logits.size(-1)), tgt[:, 1:].reshape(-1)
             ).reshape(tgt.size(0), -1)
         if self._device.type == "cuda":
             torch.cuda.synchronize(self._device)
@@ -72,7 +71,5 @@ class BatchSeq2SeqLossScorer:
         loss_sums = (per_token_loss * mask).sum(dim=1)
         token_counts = mask.sum(dim=1)
         if torch.any(token_counts == 0):
-            raise ValueError(
-                "Each example must contribute at least one non-pad target token."
-            )
+            raise ValueError("Each example must contribute at least one non-pad target token.")
         return [float(x) for x in (loss_sums / token_counts).tolist()]

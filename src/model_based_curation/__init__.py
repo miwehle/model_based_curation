@@ -4,10 +4,4 @@ from model_based_curation.api import filter, split
 from model_based_curation.config import FilterConfig, SplitConfig
 from model_based_curation.filter import Filter
 
-__all__ = [
-    "Filter",
-    "FilterConfig",
-    "SplitConfig",
-    "filter",
-    "split",
-]
+__all__ = ["Filter", "FilterConfig", "SplitConfig", "filter", "split"]

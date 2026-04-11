@@ -32,12 +32,7 @@ def _load_dataset(path: str | Path):
 def _get_gpu_util() -> int | None:
     try:
         out = subprocess.check_output(
-            [
-                "nvidia-smi",
-                "--query-gpu=utilization.gpu",
-                "--format=csv,noheader,nounits",
-            ],
-            text=True,
+            ["nvidia-smi", "--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"], text=True
         )
     except (FileNotFoundError, subprocess.CalledProcessError):
         return None
@@ -75,8 +70,7 @@ def _bucket_filename(bucket_index: int, upper_bounds: Sequence[float]) -> str:
 
 
 yaml.SafeDumper.add_representer(
-    _FlowSeq,
-    lambda dumper, data: dumper.represent_sequence("tag:yaml.org,2002:seq", data, flow_style=True),
+    _FlowSeq, lambda dumper, data: dumper.represent_sequence("tag:yaml.org,2002:seq", data, flow_style=True)
 )
 
 
@@ -105,11 +99,7 @@ class Splitter:
         self._log_every_batches = log_every_batches
 
     def split_dataset(
-        self,
-        dataset_path: str | Path,
-        scorer: BatchLossScorer,
-        *,
-        batch_size: int,
+        self, dataset_path: str | Path, scorer: BatchLossScorer, *, batch_size: int
     ) -> list[Path]:
         if batch_size <= 0:
             raise ValueError("batch_size must be positive.")
@@ -118,11 +108,7 @@ class Splitter:
         dataset = _load_dataset(dataset_path)
         total_examples = len(dataset)
         total_batches = ceil(total_examples / batch_size) if total_examples else 0
-        _LOG.info(
-            "Loaded dataset with %s examples; writing buckets to %s",
-            total_examples,
-            self._output_dir,
-        )
+        _LOG.info("Loaded dataset with %s examples; writing buckets to %s", total_examples, self._output_dir)
         self._output_dir.mkdir(parents=True, exist_ok=True)
         output_paths = self._bucket_paths()
         batch: list[Example] = []
@@ -131,12 +117,10 @@ class Splitter:
 
         with ExitStack() as stack:
             files = [
-                stack.enter_context(path.open("w", encoding="utf-8", newline=""))
-                for path in output_paths
+                stack.enter_context(path.open("w", encoding="utf-8", newline="")) for path in output_paths
             ]
             writers = [
-                csv.DictWriter(file, fieldnames=_CSV_FIELDS, delimiter=self._csv_delimiter)
-                for file in files
+                csv.DictWriter(file, fieldnames=_CSV_FIELDS, delimiter=self._csv_delimiter) for file in files
             ]
             for writer in writers:
                 writer.writeheader()
@@ -149,9 +133,7 @@ class Splitter:
                     batch_index += 1
                     if batch_index % self._log_every_batches == 0:
                         _LOG.info(
-                            self._batch_message(
-                                batch_index, total_batches, len(batch), processed_examples
-                            )
+                            self._batch_message(batch_index, total_batches, len(batch), processed_examples)
                         )
                     self._flush_batch(
                         batch, scorer, writers, examples_per_bucket, decoded_per_bucket, max_losses
@@ -160,21 +142,13 @@ class Splitter:
                     batch.clear()
             if batch:
                 batch_index += 1
-                _LOG.info(
-                    self._batch_message(
-                        batch_index, total_batches, len(batch), processed_examples
-                    )
-                )
-            self._flush_batch(
-                batch, scorer, writers, examples_per_bucket, decoded_per_bucket, max_losses
-            )
+                _LOG.info(self._batch_message(batch_index, total_batches, len(batch), processed_examples))
+            self._flush_batch(batch, scorer, writers, examples_per_bucket, decoded_per_bucket, max_losses)
             processed_examples += len(batch)
         self._write_bucket_stats(examples_per_bucket, max_losses[-1])
 
         _LOG.info(
-            "Finished split with %s processed examples into %s buckets",
-            processed_examples,
-            len(output_paths),
+            "Finished split with %s processed examples into %s buckets", processed_examples, len(output_paths)
         )
         return output_paths
 
@@ -190,10 +164,7 @@ class Splitter:
         end_index = processed_examples + batch_len
         gpu_util = _get_gpu_util()
         gpu_text = f"{gpu_util}%" if gpu_util is not None else "-"
-        return (
-            f"{batch_label} ({batch_len} examples; rows {start_index}-{end_index}; "
-            f"gpu={gpu_text})"
-        )
+        return f"{batch_label} ({batch_len} examples; rows {start_index}-{end_index}; " f"gpu={gpu_text})"
 
     def _bucket_paths(self) -> list[Path]:
         return [
@@ -218,7 +189,9 @@ class Splitter:
         for example, loss in zip(batch, losses, strict=True):
             writer_index = _bucket_index(float(loss), self._bounds)
             examples_per_bucket[writer_index] += 1
-            max_losses[writer_index] = loss if max_losses[writer_index] is None else max(max_losses[writer_index], loss)
+            max_losses[writer_index] = (
+                loss if max_losses[writer_index] is None else max(max_losses[writer_index], loss)
+            )
             decode_text = (
                 decoded_per_bucket[writer_index] < self._decode_at_least
                 or self._decode_from_loss is None
@@ -251,13 +224,9 @@ class Splitter:
         with (self._output_dir / "bucket_stats.yaml").open("w", encoding="utf-8") as handle:
             yaml.safe_dump(stats, handle, sort_keys=False)
 
-    def _csv_row(
-        self, example: Mapping[str, Any], loss: float, *, decode_text: bool
-    ) -> dict[str, str | int]:
+    def _csv_row(self, example: Mapping[str, Any], loss: float, *, decode_text: bool) -> dict[str, str | int]:
         if "src_ids" not in example or "tgt_ids" not in example:
-            raise ValueError(
-                "Examples must define 'src_ids' and 'tgt_ids' for CSV bucket output."
-            )
+            raise ValueError("Examples must define 'src_ids' and 'tgt_ids' for CSV bucket output.")
         src_ids = [int(token_id) for token_id in example["src_ids"]]
         tgt_ids = [int(token_id) for token_id in example["tgt_ids"]]
         return {

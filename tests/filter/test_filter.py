@@ -20,9 +20,7 @@ def _temp_dir(prefix: str) -> Path:
 
 def _write_bucket(path: Path, rows: list[dict[str, str]], *, delimiter: str) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(
-            handle, fieldnames=("id", "keep", "loss", "src", "tgt"), delimiter=delimiter
-        )
+        writer = csv.DictWriter(handle, fieldnames=("id", "keep", "loss", "src", "tgt"), delimiter=delimiter)
         writer.writeheader()
         writer.writerows(rows)
 
@@ -43,9 +41,7 @@ def test_filter_filters_examples_by_bucket_ids_and_updates_manifest():
     from datasets import Dataset
 
     Dataset.from_list(source_rows).save_to_disk(str(dataset_dir))
-    (dataset_dir / "preprocess_config.yaml").write_text(
-        "schema_version: 1\n", encoding="utf-8"
-    )
+    (dataset_dir / "preprocess_config.yaml").write_text("schema_version: 1\n", encoding="utf-8")
     with (dataset_dir / "dataset_manifest.yaml").open("w", encoding="utf-8") as handle:
         yaml.safe_dump(
             {
@@ -60,11 +56,7 @@ def test_filter_filters_examples_by_bucket_ids_and_updates_manifest():
             allow_unicode=True,
         )
 
-    _write_bucket(
-        bucket_1,
-        [{"id": "2", "keep": "", "loss": "2,1", "src": "12", "tgt": "22"}],
-        delimiter=";",
-    )
+    _write_bucket(bucket_1, [{"id": "2", "keep": "", "loss": "2,1", "src": "12", "tgt": "22"}], delimiter=";")
     _write_bucket(
         bucket_2,
         [
@@ -80,9 +72,7 @@ def test_filter_filters_examples_by_bucket_ids_and_updates_manifest():
     assert [int(row["id"]) for row in filtered] == [1, 3]
     assert (output_dir / "dataset_info.json").is_file()
     assert (output_dir / "state.json").is_file()
-    assert (output_dir / "preprocess_config.yaml").read_text(encoding="utf-8") == (
-        "schema_version: 1\n"
-    )
+    assert (output_dir / "preprocess_config.yaml").read_text(encoding="utf-8") == ("schema_version: 1\n")
     with (output_dir / "dataset_manifest.yaml").open("r", encoding="utf-8") as handle:
         manifest = yaml.safe_load(handle)
     assert manifest["num_examples"] == 2
@@ -98,15 +88,10 @@ def test_filter_keeps_dataset_unchanged_when_no_bucket_ids_match():
     from datasets import Dataset
 
     Dataset.from_list(
-        [
-            {"id": 10, "src_ids": [11], "tgt_ids": [21]},
-            {"id": 20, "src_ids": [12], "tgt_ids": [22]},
-        ]
+        [{"id": 10, "src_ids": [11], "tgt_ids": [21]}, {"id": 20, "src_ids": [12], "tgt_ids": [22]}]
     ).save_to_disk(str(dataset_dir))
     _write_bucket(
-        bucket_path,
-        [{"id": "30", "keep": "", "loss": "1,5", "src": "13", "tgt": "23"}],
-        delimiter=";",
+        bucket_path, [{"id": "30", "keep": "", "loss": "1,5", "src": "13", "tgt": "23"}], delimiter=";"
     )
 
     Filter().filter_dataset([bucket_path], dataset_dir, output_dir)
@@ -124,10 +109,7 @@ def test_filter_keeps_examples_with_non_empty_keep_marker():
     from datasets import Dataset
 
     Dataset.from_list(
-        [
-            {"id": 10, "src_ids": [11], "tgt_ids": [21]},
-            {"id": 20, "src_ids": [12], "tgt_ids": [22]},
-        ]
+        [{"id": 10, "src_ids": [11], "tgt_ids": [21]}, {"id": 20, "src_ids": [12], "tgt_ids": [22]}]
     ).save_to_disk(str(dataset_dir))
     _write_bucket(
         bucket_path,
