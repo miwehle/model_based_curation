@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import csv
+import logging
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import ExitStack
-import logging
 from math import ceil
 from pathlib import Path
-import subprocess
 from typing import Any, Protocol
+
 import yaml
+from nmt_lab_shared.compute_metrics import get_gpu_util
 
 Example = dict[str, Any]
 _CSV_FIELDS = ("id", "keep", "loss", "src", "tgt")
@@ -27,19 +28,6 @@ def _load_dataset(path: str | Path):
     from datasets import load_from_disk
 
     return load_from_disk(str(path))
-
-
-def _get_gpu_util() -> int | None:
-    try:
-        out = subprocess.check_output(
-            ["nvidia-smi", "--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"], text=True
-        )
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        return None
-    try:
-        return int(out.strip())
-    except ValueError:
-        return None
 
 
 def _validate_upper_bounds(upper_bounds: Sequence[float]) -> list[float]:
@@ -162,7 +150,7 @@ class Splitter:
         )
         start_index = processed_examples + 1
         end_index = processed_examples + batch_len
-        gpu_util = _get_gpu_util()
+        gpu_util = get_gpu_util()
         gpu_text = f"{gpu_util}%" if gpu_util is not None else "-"
         return f"{batch_label} ({batch_len} examples; rows {start_index}-{end_index}; " f"gpu={gpu_text})"
 
