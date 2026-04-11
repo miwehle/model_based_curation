@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 
@@ -8,7 +8,7 @@ add_src_dirs(__file__)
 
 
 def main() -> int:
-    from nmt_lab_shared import read_run_config
+    from lab_infrastructure import read_run_config
 
     from model_based_curation import SplitConfig, split
 
@@ -29,3 +29,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

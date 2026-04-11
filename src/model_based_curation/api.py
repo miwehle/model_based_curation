@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import logging
 import shutil
 from dataclasses import asdict
 from pathlib import Path
 
-from nmt_lab_shared import write_run_config
+from lab_infrastructure import write_run_config
 
 from .config import FilterConfig, SplitConfig
 from .filter import Filter
@@ -140,3 +140,4 @@ def filter(config: FilterConfig) -> Path:
         logging.getLogger().removeHandler(handler)
         handler.close()
     return filtered_dataset_path
+

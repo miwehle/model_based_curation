@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import logging
 import sys
@@ -10,7 +10,7 @@ def add_src_dirs(script_file: str) -> None:
     repo_root = Path(script_file).resolve().parents[1]
     src_dirs = (
         repo_root / "src",
-        repo_root.parent / "nmt_lab_shared" / "src",
+        repo_root.parent / "lab_infrastructure" / "src",
         repo_root.parent / "translator" / "src",
     )
     for src_dir in src_dirs:
@@ -25,3 +25,4 @@ def configure_logging() -> None:
         stream=sys.stdout,
         force=True,
     )
+

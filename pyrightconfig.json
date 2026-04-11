@@ -1,4 +1,4 @@
-{
+﻿{
   "include": [
     "src",
     "scripts",
@@ -6,7 +6,8 @@
   ],
   "extraPaths": [
     "src",
-    "../nmt_lab_shared/src",
+    "../lab_infrastructure/src",
     "../translator/src"
   ]
 }
+

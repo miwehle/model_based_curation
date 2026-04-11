@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import csv
 import logging
@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 import yaml
-from nmt_lab_shared.compute_metrics import get_gpu_util
+from lab_infrastructure.compute_metrics import get_gpu_util
 
 Example = dict[str, Any]
 _CSV_FIELDS = ("id", "keep", "loss", "src", "tgt")
@@ -230,3 +230,4 @@ class Splitter:
         if self._loss_decimal_separator == ".":
             return formatted
         return formatted.replace(".", ",")
+
