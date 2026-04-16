@@ -53,6 +53,23 @@ def _copy_dataset_to_drive(output_dir: Path, drive_dir: Path) -> None:
     shutil.copytree(output_dir, drive_dir)
 
 
+def _resolve_bucket_paths(config: FilterConfig) -> list[Path]:
+    bucket_paths = [config.bucket_dir / f"{bucket_file}.csv" for bucket_file in config.bucket_files]
+    if not bucket_paths:
+        raise ValueError(f"No bucket files found in {config.bucket_dir}")
+    missing_bucket_paths = [path for path in bucket_paths if not path.is_file()]
+    if not missing_bucket_paths:
+        return bucket_paths
+
+    config.bucket_dir.mkdir(parents=True, exist_ok=True)
+    for missing_bucket_path in missing_bucket_paths:
+        drive_bucket_path = config.drive_bucket_dir / missing_bucket_path.name
+        if not drive_bucket_path.is_file():
+            raise ValueError(f"Bucket file not found: {missing_bucket_path}")
+        shutil.copy2(drive_bucket_path, missing_bucket_path)
+    return bucket_paths
+
+
 def _strip_leading_token(token_ids: list[int], token_id: int | None) -> list[int]:
     if token_id is None or not token_ids or token_ids[0] != token_id:
         return token_ids
@@ -113,9 +130,7 @@ def filter(config: FilterConfig) -> Path:
     _fail_if_dir_exists(drive_output_dir, label="Drive output directory")
 
     dataset_path = _copy_dataset_to_local_artifacts(config)
-    bucket_paths = [config.bucket_dir / f"{bucket_file}.csv" for bucket_file in config.bucket_files]
-    if not bucket_paths:
-        raise ValueError(f"No bucket files found in {config.bucket_dir}")
+    bucket_paths = _resolve_bucket_paths(config)
 
     output_dir.parent.mkdir(parents=True, exist_ok=True)
     log_path = output_dir.parent / "filter.log"

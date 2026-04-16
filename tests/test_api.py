@@ -97,12 +97,15 @@ def _write_bucket(path: Path, rows: list[dict[str, str]]) -> None:
         writer.writerows(rows)
 
 
-def _patch_filter_config_paths(monkeypatch, *, dataset_dir: Path, output_dir: Path, drive_dir: Path) -> None:
+def _patch_filter_config_paths(
+    monkeypatch, *, dataset_dir: Path, output_dir: Path, drive_dir: Path, drive_bucket_dir: Path | None = None
+) -> None:
     bucket_dir = dataset_dir / "curation" / "loss_buckets"
+    resolved_drive_bucket_dir = drive_bucket_dir or bucket_dir
     _patch_attr(monkeypatch, FilterConfig, "dataset_drive_path", dataset_dir)
     _patch_attr(monkeypatch, FilterConfig, "dataset_local_path", dataset_dir)
     _patch_attr(monkeypatch, FilterConfig, "bucket_dir", bucket_dir)
-    _patch_attr(monkeypatch, FilterConfig, "drive_bucket_dir", bucket_dir)
+    _patch_attr(monkeypatch, FilterConfig, "drive_bucket_dir", resolved_drive_bucket_dir)
     _patch_attr(monkeypatch, FilterConfig, "output_path", output_dir)
     _patch_attr(monkeypatch, FilterConfig, "drive_output_path", drive_dir)
 
@@ -282,6 +285,37 @@ def test_filter_can_use_explicit_bucket_files_subset(monkeypatch):
     assert [int(row["id"]) for row in load_from_disk(str(output_dir))] == [1]
 
 
+def test_filter_copies_missing_local_bucket_files_from_drive(monkeypatch):
+    root_dir = _temp_dir("filter_api_copy_buckets")
+    dataset_dir = root_dir / "dataset"
+    local_dataset_dir = root_dir / "local_artifacts" / "dataset"
+    drive_bucket_dir = dataset_dir / "curation" / "loss_buckets"
+    local_bucket_dir = local_dataset_dir / "curation" / "loss_buckets"
+    output_dir = local_dataset_dir / "curation" / "filtered_dataset"
+    drive_dir = root_dir / "drive_artifacts" / "dataset" / "curation" / "filtered_dataset"
+
+    _write_dataset(
+        dataset_dir,
+        [{"id": 1, "src_ids": [11], "tgt_ids": [21]}, {"id": 2, "src_ids": [12], "tgt_ids": [22]}],
+    )
+    drive_bucket_dir.mkdir(parents=True, exist_ok=True)
+    _write_bucket(drive_bucket_dir / "1.csv", [{"id": "2", "keep": "", "loss": "3,1", "src": "12", "tgt": "22"}])
+    _patch_filter_config_paths(
+        monkeypatch,
+        dataset_dir=dataset_dir,
+        output_dir=output_dir,
+        drive_dir=drive_dir,
+        drive_bucket_dir=drive_bucket_dir,
+    )
+    _patch_attr(monkeypatch, FilterConfig, "dataset_local_path", local_dataset_dir)
+    _patch_attr(monkeypatch, FilterConfig, "bucket_dir", local_bucket_dir)
+
+    filter(FilterConfig(dataset="dataset", bucket_files=(1,)))
+
+    assert (local_bucket_dir / "1.csv").is_file()
+    assert [int(row["id"]) for row in load_from_disk(str(output_dir))] == [1]
+
+
 def test_filter_fails_early_when_drive_output_dir_exists(monkeypatch):
     root_dir = _temp_dir("filter_api_drive_exists")
     drive_dir = root_dir / "drive_artifacts" / "dataset" / "curation" / "filtered_dataset"
@@ -310,3 +344,25 @@ def test_filter_fails_when_no_bucket_files_exist(monkeypatch):
 
     with pytest.raises(ValueError, match="No bucket files found"):
         filter(FilterConfig(dataset="dataset"))
+
+
+def test_filter_fails_when_bucket_file_is_missing_locally_and_on_drive(monkeypatch):
+    root_dir = _temp_dir("filter_api_missing_bucket")
+    dataset_dir = root_dir / "dataset"
+    local_dataset_dir = root_dir / "local_artifacts" / "dataset"
+    output_dir = local_dataset_dir / "curation" / "filtered_dataset"
+    drive_dir = root_dir / "drive_artifacts" / "dataset" / "curation" / "filtered_dataset"
+    drive_bucket_dir = root_dir / "drive_artifacts" / "dataset" / "curation" / "loss_buckets"
+    _write_dataset(dataset_dir, [{"id": 1, "src_ids": [11], "tgt_ids": [21]}])
+    _patch_filter_config_paths(
+        monkeypatch,
+        dataset_dir=dataset_dir,
+        output_dir=output_dir,
+        drive_dir=drive_dir,
+        drive_bucket_dir=drive_bucket_dir,
+    )
+    _patch_attr(monkeypatch, FilterConfig, "dataset_local_path", local_dataset_dir)
+    _patch_attr(monkeypatch, FilterConfig, "bucket_dir", local_dataset_dir / "curation" / "loss_buckets")
+
+    with pytest.raises(ValueError, match=r"Bucket file not found: .*1\.csv"):
+        filter(FilterConfig(dataset="dataset", bucket_files=(1,)))
