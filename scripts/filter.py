@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 from _bootstrap import add_src_dirs, configure_logging
