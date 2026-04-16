@@ -1,0 +1,9 @@
+dataset: news_commentary_de-en_train (5)
+checkpoint: euc2-lr2_ttc5-lr2_euc1-lr2-ttc3-l2
+
+upper_bounds: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+batch_size: 256
+
+decode_from_loss: 2.5
+decode_at_least: 10
+use_bf16: true
