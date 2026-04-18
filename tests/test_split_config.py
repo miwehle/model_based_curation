@@ -14,6 +14,15 @@ def test_configs_use_local_datasets_directory():
     )
 
 
+def test_filter_config_uses_curated_dataset_output_directory():
+    config = FilterConfig(dataset="dataset")
+
+    assert config.output_path == Path("/content/nmt_lab/artifacts/datasets/dataset/curation/curated_dataset")
+    assert config.drive_output_path == Path(
+        "/content/drive/MyDrive/nmt_lab/artifacts/datasets/dataset/curation/curated_dataset"
+    )
+
+
 def test_split_config_validates_csv_format_options():
     try:
         SplitConfig(dataset="dataset", checkpoint="run", upper_bounds=(0.5, 1.5), log_every_batches=0)

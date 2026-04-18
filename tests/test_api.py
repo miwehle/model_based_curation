@@ -234,8 +234,8 @@ def test_filter_writes_log_and_copies_dataset_to_drive(monkeypatch, caplog):
     bucket_dir = dataset_dir / "curation" / "loss_buckets"
     local_curation_dir = root_dir / "local_artifacts" / "dataset" / "curation"
     drive_curation_dir = root_dir / "drive_artifacts" / "dataset" / "curation"
-    output_dir = local_curation_dir / "filtered_dataset"
-    drive_dir = drive_curation_dir / "filtered_dataset"
+    output_dir = local_curation_dir / "curated_dataset"
+    drive_dir = drive_curation_dir / "curated_dataset"
 
     _write_dataset(
         dataset_dir,
@@ -267,8 +267,8 @@ def test_filter_can_use_explicit_bucket_files_subset(monkeypatch):
     bucket_dir = dataset_dir / "curation" / "loss_buckets"
     local_curation_dir = root_dir / "local_artifacts" / "dataset" / "curation"
     drive_curation_dir = root_dir / "drive_artifacts" / "dataset" / "curation"
-    output_dir = local_curation_dir / "filtered_dataset"
-    drive_dir = drive_curation_dir / "filtered_dataset"
+    output_dir = local_curation_dir / "curated_dataset"
+    drive_dir = drive_curation_dir / "curated_dataset"
 
     _write_dataset(
         dataset_dir,
@@ -291,8 +291,8 @@ def test_filter_copies_missing_local_bucket_files_from_drive(monkeypatch):
     local_dataset_dir = root_dir / "local_artifacts" / "dataset"
     drive_bucket_dir = dataset_dir / "curation" / "loss_buckets"
     local_bucket_dir = local_dataset_dir / "curation" / "loss_buckets"
-    output_dir = local_dataset_dir / "curation" / "filtered_dataset"
-    drive_dir = root_dir / "drive_artifacts" / "dataset" / "curation" / "filtered_dataset"
+    output_dir = local_dataset_dir / "curation" / "curated_dataset"
+    drive_dir = root_dir / "drive_artifacts" / "dataset" / "curation" / "curated_dataset"
 
     _write_dataset(
         dataset_dir,
@@ -318,12 +318,12 @@ def test_filter_copies_missing_local_bucket_files_from_drive(monkeypatch):
 
 def test_filter_fails_early_when_drive_output_dir_exists(monkeypatch):
     root_dir = _temp_dir("filter_api_drive_exists")
-    drive_dir = root_dir / "drive_artifacts" / "dataset" / "curation" / "filtered_dataset"
+    drive_dir = root_dir / "drive_artifacts" / "dataset" / "curation" / "curated_dataset"
     drive_dir.mkdir(parents=True, exist_ok=True)
     _patch_filter_config_paths(
         monkeypatch,
         dataset_dir=root_dir / "dataset",
-        output_dir=root_dir / "local_artifacts" / "dataset" / "curation" / "filtered_dataset",
+        output_dir=root_dir / "local_artifacts" / "dataset" / "curation" / "curated_dataset",
         drive_dir=drive_dir,
     )
 
@@ -338,8 +338,8 @@ def test_filter_fails_when_no_bucket_files_exist(monkeypatch):
     _patch_filter_config_paths(
         monkeypatch,
         dataset_dir=dataset_dir,
-        output_dir=root_dir / "local_artifacts" / "dataset" / "curation" / "filtered_dataset",
-        drive_dir=root_dir / "drive_artifacts" / "dataset" / "curation" / "filtered_dataset",
+        output_dir=root_dir / "local_artifacts" / "dataset" / "curation" / "curated_dataset",
+        drive_dir=root_dir / "drive_artifacts" / "dataset" / "curation" / "curated_dataset",
     )
 
     with pytest.raises(ValueError, match="No bucket files found"):
@@ -350,8 +350,8 @@ def test_filter_fails_when_bucket_file_is_missing_locally_and_on_drive(monkeypat
     root_dir = _temp_dir("filter_api_missing_bucket")
     dataset_dir = root_dir / "dataset"
     local_dataset_dir = root_dir / "local_artifacts" / "dataset"
-    output_dir = local_dataset_dir / "curation" / "filtered_dataset"
-    drive_dir = root_dir / "drive_artifacts" / "dataset" / "curation" / "filtered_dataset"
+    output_dir = local_dataset_dir / "curation" / "curated_dataset"
+    drive_dir = root_dir / "drive_artifacts" / "dataset" / "curation" / "curated_dataset"
     drive_bucket_dir = root_dir / "drive_artifacts" / "dataset" / "curation" / "loss_buckets"
     _write_dataset(dataset_dir, [{"id": 1, "src_ids": [11], "tgt_ids": [21]}])
     _patch_filter_config_paths(

@@ -81,8 +81,8 @@ class FilterConfig:
 
     @property
     def output_path(self) -> Path:
-        return self.dataset_local_path / "curation" / "filtered_dataset"
+        return self.dataset_local_path / "curation" / "curated_dataset"
 
     @property
     def drive_output_path(self) -> Path:
-        return self.dataset_drive_path / "curation" / "filtered_dataset"
+        return self.dataset_drive_path / "curation" / "curated_dataset"
