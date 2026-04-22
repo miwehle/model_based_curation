@@ -1,13 +1,11 @@
 {
-  "include": [
-    "src",
-    "scripts",
-    "tests"
-  ],
-  "extraPaths": [
-    "src",
-    "../lab_infrastructure/src",
-    "../translator/src"
+  "extends": "../pyrightconfig.json",
+  "include": ["src", "scripts", "tests"],
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "extraPaths": ["src", "../lab_infrastructure/src", "../translator/src", "../data_preprocessor/src"]
+    }
   ]
 }
 
