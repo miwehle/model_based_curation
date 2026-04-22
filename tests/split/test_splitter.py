@@ -25,7 +25,7 @@ class _FakeBatchScorer:
         self.seen_batches: list[list[int]] = []
 
     def score_batch(self, examples: list[Mapping[str, object]]) -> list[float]:
-        ids = [int(example["id"]) for example in examples]
+        ids = [_example_id(example) for example in examples]
         self.seen_batches.append(ids)
         mapping = {1: 0.2, 2: 0.9, 3: 2.3}
         return [mapping[ex_id] for ex_id in ids]
@@ -47,6 +47,13 @@ def _read_yaml(path: Path) -> dict[str, object]:
 
 def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def _example_id(example: Mapping[str, object]) -> int:
+    value = example["id"]
+    if not isinstance(value, int):
+        raise TypeError(f"Expected integer example id, got {type(value).__name__}")
+    return value
 
 
 def test_splitter_writes_csv_buckets_named_by_bucket_interval():
@@ -141,7 +148,7 @@ def test_splitter_can_write_semicolon_csv_with_german_decimal_separator():
     class _GermanCsvScorer:
         def score_batch(self, examples: list[Mapping[str, object]]) -> list[float]:
             mapping = {1: 0.9, 2: 0.2}
-            return [mapping[int(example["id"])] for example in examples]
+            return [mapping[_example_id(example)] for example in examples]
 
     output_paths = Splitter(
         [1.5],
@@ -174,7 +181,7 @@ def test_splitter_decodes_at_least_n_examples_per_bucket_before_threshold():
     class _ThresholdScorer:
         def score_batch(self, examples: list[Mapping[str, object]]) -> list[float]:
             mapping = {1: 0.1, 2: 0.2, 3: 1.7, 4: 0.3}
-            return [mapping[int(example["id"])] for example in examples]
+            return [mapping[_example_id(example)] for example in examples]
 
     output_paths = Splitter(
         [1.5],
