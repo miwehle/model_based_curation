@@ -1,33 +1,34 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
+
+from pydantic import ConfigDict, Field, model_validator
+from pydantic.dataclasses import dataclass
+
+_CONFIG = ConfigDict(extra="forbid")
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(frozen=True, kw_only=True, config=_CONFIG)
 class SplitConfig:
     dataset: str
     checkpoint: str
     upper_bounds: tuple[float, ...]
-    csv_delimiter: str = ";"
-    loss_decimal_separator: str = ","
-    batch_size: int = 32
-    log_every_batches: int = 50
+    csv_delimiter: Literal[",", ";"] = ";"
+    loss_decimal_separator: Literal[".", ","] = ","
+    batch_size: int = Field(default=32, gt=0)
+    log_every_batches: int = Field(default=50, gt=0)
     use_bf16: bool = False
-    decode_from_loss: float | None = None
-    decode_at_least: int = 10
+    decode_from_loss: float | None = Field(default=None, ge=0)
+    decode_at_least: int = Field(default=10, ge=0)
 
-    def __post_init__(self) -> None:
-        if self.log_every_batches <= 0:
-            raise ValueError("log_every_batches must be positive.")
-        if self.csv_delimiter not in {",", ";"}:
-            raise ValueError("csv_delimiter must be ',' or ';'.")
-        if self.loss_decimal_separator not in {".", ","}:
-            raise ValueError("loss_decimal_separator must be '.' or ','.")
-        if self.decode_from_loss is not None and self.decode_from_loss < 0:
-            raise ValueError("decode_from_loss must be non-negative.")
-        if self.decode_at_least < 0:
-            raise ValueError("decode_at_least must be non-negative.")
+    @model_validator(mode="after")
+    def validate_upper_bounds(self) -> SplitConfig:
+        if any(bound < 0 for bound in self.upper_bounds):
+            raise ValueError("upper_bounds must be non-negative.")
+        if any(left >= right for left, right in zip(self.upper_bounds, self.upper_bounds[1:])):
+            raise ValueError("upper_bounds must be strictly increasing.")
+        return self
 
     @property
     def dataset_drive_path(self) -> Path:
@@ -58,7 +59,7 @@ class SplitConfig:
         )
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(frozen=True, kw_only=True, config=_CONFIG)
 class FilterConfig:
     dataset: str
     bucket_files: tuple[int, ...] = ()

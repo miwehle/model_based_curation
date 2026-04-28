@@ -30,15 +30,6 @@ def _load_dataset(path: str | Path):
     return load_from_disk(str(path))
 
 
-def _validate_upper_bounds(upper_bounds: Sequence[float]) -> list[float]:
-    bounds = [float(bound) for bound in upper_bounds]
-    if any(bound < 0 for bound in bounds):
-        raise ValueError("upper_bounds must be non-negative.")
-    if any(left >= right for left, right in zip(bounds, bounds[1:])):
-        raise ValueError("upper_bounds must be strictly increasing.")
-    return bounds
-
-
 def _bucket_index(loss: float, upper_bounds: Sequence[float]) -> int:
     for index, upper_bound in enumerate(upper_bounds):
         if loss < upper_bound:
@@ -76,7 +67,7 @@ class Splitter:
         decode_at_least: int = 10,
         log_every_batches: int = 1,
     ) -> None:
-        self._bounds = _validate_upper_bounds(upper_bounds)
+        self._bounds = [float(bound) for bound in upper_bounds]
         self._output_dir = Path(output_dir)
         self._decode_src_text = decode_src_text
         self._decode_tgt_text = decode_tgt_text
@@ -89,9 +80,6 @@ class Splitter:
     def split_dataset(
         self, dataset_path: str | Path, scorer: BatchLossScorer, *, batch_size: int
     ) -> list[Path]:
-        if batch_size <= 0:
-            raise ValueError("batch_size must be positive.")
-
         _LOG.info("Opening dataset from %s", dataset_path)
         dataset = _load_dataset(dataset_path)
         total_examples = len(dataset)
@@ -152,7 +140,7 @@ class Splitter:
         end_index = processed_examples + batch_len
         gpu_util = get_gpu_util()
         gpu_text = f"{gpu_util}%" if gpu_util is not None else "-"
-        return f"{batch_label} ({batch_len} examples; rows {start_index}-{end_index}; " f"gpu={gpu_text})"
+        return f"{batch_label} ({batch_len} examples; rows {start_index}-{end_index}; gpu={gpu_text})"
 
     def _bucket_paths(self) -> list[Path]:
         return [
@@ -230,4 +218,3 @@ class Splitter:
         if self._loss_decimal_separator == ".":
             return formatted
         return formatted.replace(".", ",")
-

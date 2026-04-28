@@ -9,7 +9,7 @@ add_src_dirs(__file__)
 
 
 def main() -> int:
-    from lab_infrastructure import read_run_config
+    from lab_infrastructure import read_run_config_as
 
     from model_based_curation import SplitConfig, split
 
@@ -19,8 +19,7 @@ def main() -> int:
         return 1
 
     try:
-        cfg = read_run_config(Path(sys.argv[1]))
-        split(SplitConfig(**cfg))
+        split(read_run_config_as(Path(sys.argv[1]), SplitConfig))
     except Exception as exc:
         print(f"Split failed: {exc}")
         return 1
@@ -30,4 +29,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
