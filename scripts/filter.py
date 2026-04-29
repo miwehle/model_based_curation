@@ -8,10 +8,10 @@ add_src_dirs(__file__)
 def main() -> int:
     from lab_infrastructure import run
 
-    from model_based_curation import FilterConfig, filter
+    from model_based_curation import filter
 
     configure_logging()
-    run(filter, FilterConfig)
+    run(filter)
     return 0
 
 

@@ -10,7 +10,7 @@ _CONFIG = ConfigDict(extra="forbid")
 
 
 @dataclass(frozen=True, kw_only=True, config=_CONFIG)
-class SplitConfig:
+class SplitRunConfig:
     dataset: str
     checkpoint: str
     upper_bounds: tuple[float, ...]
@@ -23,7 +23,7 @@ class SplitConfig:
     decode_at_least: int = Field(default=10, ge=0)
 
     @model_validator(mode="after")
-    def validate_upper_bounds(self) -> SplitConfig:
+    def validate_upper_bounds(self) -> SplitRunConfig:
         if any(bound < 0 for bound in self.upper_bounds):
             raise ValueError("upper_bounds must be non-negative.")
         if any(left >= right for left, right in zip(self.upper_bounds, self.upper_bounds[1:])):
@@ -60,7 +60,7 @@ class SplitConfig:
 
 
 @dataclass(frozen=True, kw_only=True, config=_CONFIG)
-class FilterConfig:
+class FilterRunConfig:
     dataset: str
     bucket_files: tuple[int, ...] = ()
 

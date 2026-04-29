@@ -8,10 +8,10 @@ add_src_dirs(__file__)
 def main() -> int:
     from lab_infrastructure import run
 
-    from model_based_curation import SplitConfig, split
+    from model_based_curation import split
 
     configure_logging()
-    run(split, SplitConfig)
+    run(split)
     return 0
 
 

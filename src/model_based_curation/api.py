@@ -7,7 +7,7 @@ from pathlib import Path
 
 from lab_infrastructure import write_run_config
 
-from .config import FilterConfig, SplitConfig
+from .config import FilterRunConfig, SplitRunConfig
 from .filter import Filter
 from .split.batch_seq2seq_loss_scorer import BatchSeq2SeqLossScorer
 from .split.splitter import Splitter
@@ -28,7 +28,7 @@ def _fail_if_dir_exists(path: Path, *, label: str) -> None:
         raise ValueError(f"{label} already exists: {path}")
 
 
-def _copy_dataset_to_local_artifacts(config: SplitConfig) -> Path:
+def _copy_dataset_to_local_artifacts(config: SplitRunConfig | FilterRunConfig) -> Path:
     source = config.dataset_drive_path
     target = config.dataset_local_path
     if target.exists():
@@ -53,7 +53,7 @@ def _copy_dataset_to_drive(output_dir: Path, drive_dir: Path) -> None:
     shutil.copytree(output_dir, drive_dir)
 
 
-def _resolve_bucket_paths(config: FilterConfig) -> list[Path]:
+def _resolve_bucket_paths(config: FilterRunConfig) -> list[Path]:
     bucket_paths = [config.bucket_dir / f"{bucket_file}.csv" for bucket_file in config.bucket_files]
     if not bucket_paths:
         raise ValueError(f"No bucket files found in {config.bucket_dir}")
@@ -76,7 +76,7 @@ def _strip_leading_token(token_ids: list[int], token_id: int | None) -> list[int
     return token_ids[1:]
 
 
-def split(config: SplitConfig) -> list[Path]:
+def split(config: SplitRunConfig) -> list[Path]:
     """Split a dataset into multiple bucket files based on example loss.
 
     The dataset comes from ``config.dataset``, and ``config.upper_bounds`` defines
@@ -123,7 +123,7 @@ def split(config: SplitConfig) -> list[Path]:
     return output_paths
 
 
-def filter(config: FilterConfig) -> Path:
+def filter(config: FilterRunConfig) -> Path:
     output_dir = config.output_path
     drive_output_dir = config.drive_output_path
     _fail_if_dir_exists(output_dir, label="Local output directory")
