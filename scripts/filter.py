@@ -6,12 +6,12 @@ add_src_dirs(__file__)
 
 
 def main() -> int:
-    from lab_infrastructure import run_config_cli
+    from lab_infrastructure import run
 
     from model_based_curation import FilterConfig, filter
 
     configure_logging()
-    run_config_cli(filter, FilterConfig)
+    run(filter, FilterConfig)
     return 0
 
 
