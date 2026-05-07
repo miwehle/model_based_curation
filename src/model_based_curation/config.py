@@ -3,10 +3,24 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
+from lab_infrastructure.dataset_artifacts import resolve_dataset
 from pydantic import ConfigDict, Field, model_validator
 from pydantic.dataclasses import dataclass
 
 _CONFIG = ConfigDict(extra="forbid")
+_DRIVE_ARTIFACTS = Path("/content/drive/MyDrive/nmt_lab/artifacts")
+_LOCAL_ARTIFACTS = Path("/content/nmt_lab/artifacts")
+
+
+def _dataset_path(artifacts_dir: str | Path, dataset: str) -> Path:
+    return resolve_dataset(Path(artifacts_dir) / "datasets", dataset)
+
+
+def _local_dataset_path(
+    local_artifacts_dir: str | Path, drive_artifacts_dir: str | Path, drive_path: Path
+) -> Path:
+    relative_path = drive_path.relative_to(Path(drive_artifacts_dir) / "datasets")
+    return Path(local_artifacts_dir) / "datasets" / relative_path
 
 
 @dataclass(frozen=True, kw_only=True, config=_CONFIG)
@@ -14,6 +28,8 @@ class SplitRunConfig:
     dataset: str
     checkpoint: str
     upper_bounds: tuple[float, ...]
+    artifacts_dir: str | Path = _DRIVE_ARTIFACTS
+    local_artifacts_dir: str | Path = _LOCAL_ARTIFACTS
     csv_delimiter: Literal[",", ";"] = ";"
     loss_decimal_separator: Literal[".", ","] = ","
     batch_size: int = Field(default=32, gt=0)
@@ -32,58 +48,45 @@ class SplitRunConfig:
 
     @property
     def dataset_drive_path(self) -> Path:
-        return Path("/content/drive/MyDrive/nmt_lab/artifacts/datasets") / self.dataset
+        return _dataset_path(self.artifacts_dir, self.dataset)
 
     @property
     def dataset_local_path(self) -> Path:
-        return Path("/content") / "nmt_lab" / "artifacts" / "datasets" / self.dataset
+        return _local_dataset_path(self.local_artifacts_dir, self.artifacts_dir, self.dataset_drive_path)
 
     @property
-    def output_path(self) -> Path:
-        return self.dataset_local_path / "curation" / "loss_buckets"
+    def bucket_root_path(self) -> Path:
+        return self.dataset_local_path / "loss_buckets"
 
     @property
-    def drive_output_path(self) -> Path:
-        return (
-            Path("/content/drive/MyDrive/nmt_lab/artifacts")
-            / "datasets"
-            / self.dataset
-            / "curation"
-            / "loss_buckets"
-        )
+    def drive_bucket_root_path(self) -> Path:
+        return self.dataset_drive_path / "loss_buckets"
 
     @property
     def checkpoint_file(self) -> Path:
-        return (
-            Path("/content/drive/MyDrive/nmt_lab/artifacts/training_runs") / self.checkpoint / "checkpoint.pt"
-        )
+        return Path(self.artifacts_dir) / "training_runs" / self.checkpoint / "checkpoint.pt"
 
 
 @dataclass(frozen=True, kw_only=True, config=_CONFIG)
 class FilterRunConfig:
     dataset: str
+    bucket_run: str
     bucket_files: tuple[int, ...] = ()
+    artifacts_dir: str | Path = _DRIVE_ARTIFACTS
+    local_artifacts_dir: str | Path = _LOCAL_ARTIFACTS
 
     @property
     def dataset_drive_path(self) -> Path:
-        return Path("/content/drive/MyDrive/nmt_lab/artifacts/datasets") / self.dataset
+        return _dataset_path(self.artifacts_dir, self.dataset)
 
     @property
     def dataset_local_path(self) -> Path:
-        return Path("/content") / "nmt_lab" / "artifacts" / "datasets" / self.dataset
+        return _local_dataset_path(self.local_artifacts_dir, self.artifacts_dir, self.dataset_drive_path)
 
     @property
     def bucket_dir(self) -> Path:
-        return self.dataset_local_path / "curation" / "loss_buckets"
+        return self.dataset_local_path / "loss_buckets" / self.bucket_run
 
     @property
     def drive_bucket_dir(self) -> Path:
-        return self.dataset_drive_path / "curation" / "loss_buckets"
-
-    @property
-    def output_path(self) -> Path:
-        return self.dataset_local_path / "curation" / "curated_dataset"
-
-    @property
-    def drive_output_path(self) -> Path:
-        return self.dataset_drive_path / "curation" / "curated_dataset"
+        return self.dataset_drive_path / "loss_buckets" / self.bucket_run

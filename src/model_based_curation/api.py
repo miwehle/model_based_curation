@@ -6,6 +6,11 @@ from dataclasses import asdict
 from pathlib import Path
 
 from lab_infrastructure import write_run_config
+from lab_infrastructure.dataset_artifacts import (
+    append_dataset_register,
+    next_dataset_artifact,
+    next_numbered_path,
+)
 
 from .config import FilterRunConfig, SplitRunConfig
 from .filter import Filter
@@ -26,6 +31,10 @@ def _resolve_device():
 def _fail_if_dir_exists(path: Path, *, label: str) -> None:
     if path.exists():
         raise ValueError(f"{label} already exists: {path}")
+
+
+def _as_config_dict(config: SplitRunConfig | FilterRunConfig) -> dict[str, object]:
+    return {key: str(value) if isinstance(value, Path) else value for key, value in asdict(config).items()}
 
 
 def _copy_dataset_to_local_artifacts(config: SplitRunConfig | FilterRunConfig) -> Path:
@@ -82,15 +91,14 @@ def split(config: SplitRunConfig) -> list[Path]:
     The dataset comes from ``config.dataset``, and ``config.upper_bounds`` defines
     the bucket boundaries.
     """
-    output_dir = config.output_path
-    drive_output_dir = config.drive_output_path
-    _fail_if_dir_exists(output_dir, label="Local output directory")
-    _fail_if_dir_exists(drive_output_dir, label="Drive output directory")
     from translator.inference import Translator
 
     dataset_path = _copy_dataset_to_local_artifacts(config)
+    drive_output_dir = next_numbered_path(config.drive_bucket_root_path)
+    output_dir = config.bucket_root_path / drive_output_dir.name
+    _fail_if_dir_exists(output_dir, label="Local output directory")
     output_dir.mkdir(parents=True, exist_ok=True)
-    split_payload = {"split_config": asdict(config)}
+    split_payload = {"split_config": _as_config_dict(config)}
     write_run_config(
         output_dir / "split_config.yaml", split_payload, repo_root=_REPO_ROOT, git_key_prefix=_GIT_KEY_PREFIX
     )
@@ -124,8 +132,13 @@ def split(config: SplitRunConfig) -> list[Path]:
 
 
 def filter(config: FilterRunConfig) -> Path:
-    output_dir = config.output_path
-    drive_output_dir = config.drive_output_path
+    family = config.dataset.split("/", maxsplit=1)[0]
+    datasets_drive_root = Path(config.artifacts_dir) / "datasets"
+    artifact = next_dataset_artifact(datasets_drive_root, family, "curate")
+    drive_output_dir = artifact.path
+    output_dir = (
+        Path(config.local_artifacts_dir) / "datasets" / drive_output_dir.relative_to(datasets_drive_root)
+    )
     _fail_if_dir_exists(output_dir, label="Local output directory")
     _fail_if_dir_exists(drive_output_dir, label="Drive output directory")
 
@@ -140,7 +153,7 @@ def filter(config: FilterRunConfig) -> Path:
         _LOG.info("Preparing filter for dataset %s", config.dataset)
         _LOG.info("Filtering %s bucket files from %s", len(bucket_paths), config.bucket_dir)
         filtered_dataset_path = Filter().filter_dataset(bucket_paths, dataset_path, output_dir)
-        filter_payload = {"filter_config": asdict(config)}
+        filter_payload = {"filter_config": _as_config_dict(config)}
         write_run_config(
             filtered_dataset_path / "filter_config.yaml",
             filter_payload,
@@ -149,6 +162,13 @@ def filter(config: FilterRunConfig) -> Path:
         )
         _LOG.info("Copying filtered dataset to %s", drive_output_dir)
         _copy_dataset_to_drive(filtered_dataset_path, drive_output_dir)
+        append_dataset_register(
+            datasets_drive_root,
+            parent=config.dataset,
+            operation="curate",
+            dataset_id=artifact.dataset_id,
+            repo_root=_REPO_ROOT,
+        )
         _LOG.info("Filter completed successfully")
         shutil.copy2(log_path, drive_output_dir / log_path.name)
     finally:

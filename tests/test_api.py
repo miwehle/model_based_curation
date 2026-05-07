@@ -31,25 +31,26 @@ def _write_dataset(path: Path, rows: list[dict[str, object]]) -> None:
 
 
 class _SplitPaths:
-    def __init__(self, root_dir: Path, *, dataset_dir_name: str = "dataset") -> None:
-        self.dataset_dir = root_dir / dataset_dir_name
-        self.local_dataset_dir = root_dir / "local_artifacts" / "dataset"
-        self.local_curation_dir = self.local_dataset_dir / "curation"
-        self.output_dir = self.local_curation_dir / "loss_buckets"
-        self.drive_dir = root_dir / "drive_artifacts" / "dataset" / "curation" / "loss_buckets"
+    def __init__(self, root_dir: Path) -> None:
+        self.drive_artifacts = root_dir / "drive_artifacts"
+        self.local_artifacts = root_dir / "local_artifacts"
+        self.dataset_dir = self.drive_artifacts / "datasets" / "europarl" / "d1_preprocess"
+        self.local_dataset_dir = self.local_artifacts / "datasets" / "europarl" / "d1_preprocess"
+        self.output_dir = self.local_dataset_dir / "loss_buckets" / "r1"
+        self.drive_dir = self.dataset_dir / "loss_buckets" / "r1"
 
 
 class _FilterPaths:
     def __init__(self, root_dir: Path) -> None:
-        self.dataset_dir = root_dir / "dataset"
-        self.local_dataset_dir = root_dir / "local_artifacts" / "dataset"
-        self.local_curation_dir = self.local_dataset_dir / "curation"
-        self.drive_curation_dir = root_dir / "drive_artifacts" / "dataset" / "curation"
-        self.bucket_dir = self.dataset_dir / "curation" / "loss_buckets"
-        self.local_bucket_dir = self.local_curation_dir / "loss_buckets"
-        self.drive_bucket_dir = self.drive_curation_dir / "loss_buckets"
-        self.output_dir = self.local_curation_dir / "curated_dataset"
-        self.drive_dir = self.drive_curation_dir / "curated_dataset"
+        self.drive_artifacts = root_dir / "drive_artifacts"
+        self.local_artifacts = root_dir / "local_artifacts"
+        self.dataset_dir = self.drive_artifacts / "datasets" / "europarl" / "d1_preprocess"
+        self.local_dataset_dir = self.local_artifacts / "datasets" / "europarl" / "d1_preprocess"
+        self.bucket_dir = self.dataset_dir / "loss_buckets" / "r1"
+        self.local_bucket_dir = self.local_dataset_dir / "loss_buckets" / "r1"
+        self.drive_bucket_dir = self.bucket_dir
+        self.output_dir = self.local_artifacts / "datasets" / "europarl" / "d2_curate"
+        self.drive_dir = self.drive_artifacts / "datasets" / "europarl" / "d2_curate"
 
 
 def _value_property(value):
@@ -58,16 +59,6 @@ def _value_property(value):
 
 def _patch_attr(monkeypatch, cls, name: str, value) -> None:
     monkeypatch.setattr(cls, name, _value_property(value))
-
-
-def _patch_config_paths(
-    monkeypatch, *, dataset_dir: Path, output_dir: Path, drive_dir: Path, checkpoint_file: Path
-) -> None:
-    _patch_attr(monkeypatch, SplitRunConfig, "dataset_drive_path", dataset_dir)
-    _patch_attr(monkeypatch, SplitRunConfig, "dataset_local_path", dataset_dir)
-    _patch_attr(monkeypatch, SplitRunConfig, "output_path", output_dir)
-    _patch_attr(monkeypatch, SplitRunConfig, "drive_output_path", drive_dir)
-    _patch_attr(monkeypatch, SplitRunConfig, "checkpoint_file", checkpoint_file)
 
 
 class _FakeTokenizer:
@@ -119,37 +110,22 @@ def _write_bucket(path: Path, rows: list[dict[str, str]]) -> None:
         writer.writerows(rows)
 
 
-def _patch_filter_config_paths(
-    monkeypatch, *, dataset_dir: Path, output_dir: Path, drive_dir: Path, drive_bucket_dir: Path | None = None
-) -> None:
-    bucket_dir = dataset_dir / "curation" / "loss_buckets"
-    resolved_drive_bucket_dir = drive_bucket_dir or bucket_dir
-    _patch_attr(monkeypatch, FilterRunConfig, "dataset_drive_path", dataset_dir)
-    _patch_attr(monkeypatch, FilterRunConfig, "dataset_local_path", dataset_dir)
-    _patch_attr(monkeypatch, FilterRunConfig, "bucket_dir", bucket_dir)
-    _patch_attr(monkeypatch, FilterRunConfig, "drive_bucket_dir", resolved_drive_bucket_dir)
-    _patch_attr(monkeypatch, FilterRunConfig, "output_path", output_dir)
-    _patch_attr(monkeypatch, FilterRunConfig, "drive_output_path", drive_dir)
-
-
 def test_split_copies_buckets_to_drive(monkeypatch, caplog):
     root_dir = _temp_dir("split_api")
-    paths = _SplitPaths(root_dir, dataset_dir_name="drive_dataset")
+    paths = _SplitPaths(root_dir)
     _write_dataset(paths.dataset_dir, [{"id": 1, "src_ids": [11], "tgt_ids": [99, 21, 0]}])
     (paths.dataset_dir / "root.txt").write_text("root", encoding="utf-8")
-    (paths.dataset_dir / "curation").mkdir()
-    (paths.dataset_dir / "curation" / "bucket.gsheet").write_text("skip", encoding="utf-8")
+    (paths.dataset_dir / "loss_buckets").mkdir()
+    (paths.dataset_dir / "loss_buckets" / "bucket.gsheet").write_text("skip", encoding="utf-8")
     _patch_split_runtime(monkeypatch, _StaticScorer([0.2]))
-    _patch_config_paths(
-        monkeypatch,
-        dataset_dir=paths.dataset_dir,
-        output_dir=paths.output_dir,
-        drive_dir=paths.drive_dir,
-        checkpoint_file=root_dir / "checkpoint.pt",
-    )
-    _patch_attr(monkeypatch, SplitRunConfig, "dataset_local_path", paths.local_dataset_dir)
 
-    config = SplitRunConfig(dataset="dataset", checkpoint="run", upper_bounds=(0.5,))
+    config = SplitRunConfig(
+        dataset="europarl/d1",
+        checkpoint="run",
+        upper_bounds=(0.5,),
+        artifacts_dir=paths.drive_artifacts,
+        local_artifacts_dir=paths.local_artifacts,
+    )
 
     with caplog.at_level(logging.INFO):
         output_paths = split(config)
@@ -165,25 +141,29 @@ def test_split_copies_buckets_to_drive(monkeypatch, caplog):
     assert (paths.output_dir / "split_config.yaml").is_file()
     assert (paths.drive_dir / "split_config.yaml").is_file()
     assert (paths.local_dataset_dir / "root.txt").read_text(encoding="utf-8") == "root"
-    assert not (paths.local_curation_dir / "bucket.gsheet").exists()
+    assert not (paths.local_dataset_dir / "loss_buckets" / "bucket.gsheet").exists()
     messages = [record.getMessage() for record in caplog.records]
     assert any("Copying bucket files to" in message for message in messages)
 
 
-def test_split_fails_early_when_drive_output_dir_exists(monkeypatch):
-    root_dir = _temp_dir("split_api_drive_exists")
+def test_split_uses_next_bucket_run(monkeypatch):
+    root_dir = _temp_dir("split_api_next_bucket_run")
     paths = _SplitPaths(root_dir)
     paths.drive_dir.mkdir(parents=True, exist_ok=True)
-    _patch_config_paths(
-        monkeypatch,
-        dataset_dir=paths.dataset_dir,
-        output_dir=paths.output_dir,
-        drive_dir=paths.drive_dir,
-        checkpoint_file=root_dir / "checkpoint.pt",
+    _write_dataset(paths.dataset_dir, [{"id": 1, "src_ids": [11], "tgt_ids": [99, 21, 0]}])
+    _patch_split_runtime(monkeypatch, _StaticScorer([0.2]))
+
+    output_paths = split(
+        SplitRunConfig(
+            dataset="europarl/d1",
+            checkpoint="run",
+            upper_bounds=(0.5,),
+            artifacts_dir=paths.drive_artifacts,
+            local_artifacts_dir=paths.local_artifacts,
+        )
     )
 
-    with pytest.raises(ValueError, match="Drive output directory already exists"):
-        split(SplitRunConfig(dataset="dataset", checkpoint="run", upper_bounds=(0.5,)))
+    assert output_paths[0].parent.name == "r2"
 
 
 def test_split_can_write_german_csv_format(monkeypatch):
@@ -191,18 +171,13 @@ def test_split_can_write_german_csv_format(monkeypatch):
     paths = _SplitPaths(root_dir)
     _write_dataset(paths.dataset_dir, [{"id": 1, "src_ids": [11], "tgt_ids": [99, 21, 0]}])
     _patch_split_runtime(monkeypatch, _StaticScorer([0.2]))
-    _patch_config_paths(
-        monkeypatch,
-        dataset_dir=paths.dataset_dir,
-        output_dir=paths.output_dir,
-        drive_dir=root_dir / "drive",
-        checkpoint_file=root_dir / "checkpoint.pt",
-    )
 
     config = SplitRunConfig(
-        dataset="dataset",
+        dataset="europarl/d1",
         checkpoint="run",
         upper_bounds=(0.5,),
+        artifacts_dir=paths.drive_artifacts,
+        local_artifacts_dir=paths.local_artifacts,
         csv_delimiter=";",
         loss_decimal_separator=",",
     )
@@ -219,13 +194,6 @@ def test_split_passes_bf16_setting_to_batch_scorer(monkeypatch):
     _write_dataset(paths.dataset_dir, [{"id": 1, "src_ids": [11], "tgt_ids": [99, 21, 0]}])
 
     scorer_kwargs = {}
-    _patch_config_paths(
-        monkeypatch,
-        dataset_dir=paths.dataset_dir,
-        output_dir=paths.output_dir,
-        drive_dir=root_dir / "drive",
-        checkpoint_file=root_dir / "checkpoint.pt",
-    )
 
     def _make_scorer(*args, **kwargs):
         del args
@@ -238,7 +206,14 @@ def test_split_passes_bf16_setting_to_batch_scorer(monkeypatch):
     monkeypatch.setitem(sys.modules, "translator.inference", fake_translator_module)
     monkeypatch.setattr("model_based_curation.api.BatchSeq2SeqLossScorer", _make_scorer)
 
-    config = SplitRunConfig(dataset="dataset", checkpoint="run", upper_bounds=(0.5,), use_bf16=True)
+    config = SplitRunConfig(
+        dataset="europarl/d1",
+        checkpoint="run",
+        upper_bounds=(0.5,),
+        artifacts_dir=paths.drive_artifacts,
+        local_artifacts_dir=paths.local_artifacts,
+        use_bf16=True,
+    )
     split(config)
 
     assert scorer_kwargs["use_bf16"] is True
@@ -256,20 +231,26 @@ def test_filter_writes_log_and_copies_dataset_to_drive(monkeypatch, caplog):
     _write_bucket(
         paths.bucket_dir / "1.csv", [{"id": "2", "keep": "", "loss": "3,1", "src": "12", "tgt": "22"}]
     )
-    _patch_filter_config_paths(
-        monkeypatch, dataset_dir=paths.dataset_dir, output_dir=paths.output_dir, drive_dir=paths.drive_dir
-    )
 
     with caplog.at_level(logging.INFO):
-        result = filter(FilterRunConfig(dataset="dataset", bucket_files=(1,)))
+        result = filter(
+            FilterRunConfig(
+                dataset="europarl/d1",
+                bucket_run="r1",
+                bucket_files=(1,),
+                artifacts_dir=paths.drive_artifacts,
+                local_artifacts_dir=paths.local_artifacts,
+            )
+        )
 
     assert result == paths.output_dir
     assert [int(row["id"]) for row in load_from_disk(str(paths.output_dir))] == [1]
     assert [int(row["id"]) for row in load_from_disk(str(paths.drive_dir))] == [1]
     assert (paths.output_dir / "filter_config.yaml").is_file()
     assert (paths.drive_dir / "filter_config.yaml").is_file()
-    assert (paths.local_curation_dir / "filter.log").is_file()
     assert (paths.drive_dir / "filter.log").is_file()
+    register_text = (paths.drive_artifacts / "datasets" / "datasets.csv").read_text(encoding="utf-8")
+    assert ";europarl/d2;curate;europarl/d1;" in register_text
     messages = [record.getMessage() for record in caplog.records]
     assert any("Filter completed successfully" in message for message in messages)
 
@@ -289,11 +270,16 @@ def test_filter_can_use_explicit_bucket_files_subset(monkeypatch):
     _write_bucket(
         paths.bucket_dir / "2.csv", [{"id": "2", "keep": "", "loss": "0,9", "src": "12", "tgt": "22"}]
     )
-    _patch_filter_config_paths(
-        monkeypatch, dataset_dir=paths.dataset_dir, output_dir=paths.output_dir, drive_dir=paths.drive_dir
-    )
 
-    filter(FilterRunConfig(dataset="dataset", bucket_files=(2,)))
+    filter(
+        FilterRunConfig(
+            dataset="europarl/d1",
+            bucket_run="r1",
+            bucket_files=(2,),
+            artifacts_dir=paths.drive_artifacts,
+            local_artifacts_dir=paths.local_artifacts,
+        )
+    )
     assert [int(row["id"]) for row in load_from_disk(str(paths.output_dir))] == [1]
 
 
@@ -309,59 +295,72 @@ def test_filter_copies_missing_local_bucket_files_from_drive(monkeypatch):
     _write_bucket(
         paths.drive_bucket_dir / "1.csv", [{"id": "2", "keep": "", "loss": "3,1", "src": "12", "tgt": "22"}]
     )
-    _patch_filter_config_paths(
-        monkeypatch,
-        dataset_dir=paths.dataset_dir,
-        output_dir=paths.output_dir,
-        drive_dir=paths.drive_dir,
-        drive_bucket_dir=paths.drive_bucket_dir,
-    )
-    _patch_attr(monkeypatch, FilterRunConfig, "dataset_local_path", paths.local_dataset_dir)
-    _patch_attr(monkeypatch, FilterRunConfig, "bucket_dir", paths.local_bucket_dir)
 
-    filter(FilterRunConfig(dataset="dataset", bucket_files=(1,)))
+    filter(
+        FilterRunConfig(
+            dataset="europarl/d1",
+            bucket_run="r1",
+            bucket_files=(1,),
+            artifacts_dir=paths.drive_artifacts,
+            local_artifacts_dir=paths.local_artifacts,
+        )
+    )
 
     assert (paths.local_bucket_dir / "1.csv").is_file()
     assert [int(row["id"]) for row in load_from_disk(str(paths.output_dir))] == [1]
 
 
-def test_filter_fails_early_when_drive_output_dir_exists(monkeypatch):
-    root_dir = _temp_dir("filter_api_drive_exists")
+def test_filter_uses_next_curate_dataset(monkeypatch):
+    root_dir = _temp_dir("filter_api_next_curate")
     paths = _FilterPaths(root_dir)
     paths.drive_dir.mkdir(parents=True, exist_ok=True)
-    _patch_filter_config_paths(
-        monkeypatch, dataset_dir=paths.dataset_dir, output_dir=paths.output_dir, drive_dir=paths.drive_dir
+    _write_dataset(paths.dataset_dir, [{"id": 1, "src_ids": [11], "tgt_ids": [21]}])
+    paths.bucket_dir.mkdir(parents=True, exist_ok=True)
+    _write_bucket(
+        paths.bucket_dir / "1.csv", [{"id": "1", "keep": "x", "loss": "0,1", "src": "11", "tgt": "21"}]
     )
 
-    with pytest.raises(ValueError, match="Drive output directory already exists"):
-        filter(FilterRunConfig(dataset="dataset", bucket_files=(1,)))
+    result = filter(
+        FilterRunConfig(
+            dataset="europarl/d1",
+            bucket_run="r1",
+            bucket_files=(1,),
+            artifacts_dir=paths.drive_artifacts,
+            local_artifacts_dir=paths.local_artifacts,
+        )
+    )
+
+    assert result.name == "d3_curate"
 
 
 def test_filter_fails_when_no_bucket_files_exist(monkeypatch):
     root_dir = _temp_dir("filter_api_no_buckets")
     paths = _FilterPaths(root_dir)
     _write_dataset(paths.dataset_dir, [{"id": 1, "src_ids": [11], "tgt_ids": [21]}])
-    _patch_filter_config_paths(
-        monkeypatch, dataset_dir=paths.dataset_dir, output_dir=paths.output_dir, drive_dir=paths.drive_dir
-    )
 
     with pytest.raises(ValueError, match="No bucket files found"):
-        filter(FilterRunConfig(dataset="dataset"))
+        filter(
+            FilterRunConfig(
+                dataset="europarl/d1",
+                bucket_run="r1",
+                artifacts_dir=paths.drive_artifacts,
+                local_artifacts_dir=paths.local_artifacts,
+            )
+        )
 
 
 def test_filter_fails_when_bucket_file_is_missing_locally_and_on_drive(monkeypatch):
     root_dir = _temp_dir("filter_api_missing_bucket")
     paths = _FilterPaths(root_dir)
     _write_dataset(paths.dataset_dir, [{"id": 1, "src_ids": [11], "tgt_ids": [21]}])
-    _patch_filter_config_paths(
-        monkeypatch,
-        dataset_dir=paths.dataset_dir,
-        output_dir=paths.output_dir,
-        drive_dir=paths.drive_dir,
-        drive_bucket_dir=paths.drive_bucket_dir,
-    )
-    _patch_attr(monkeypatch, FilterRunConfig, "dataset_local_path", paths.local_dataset_dir)
-    _patch_attr(monkeypatch, FilterRunConfig, "bucket_dir", paths.local_bucket_dir)
 
     with pytest.raises(ValueError, match=r"Bucket file not found: .*1\.csv"):
-        filter(FilterRunConfig(dataset="dataset", bucket_files=(1,)))
+        filter(
+            FilterRunConfig(
+                dataset="europarl/d1",
+                bucket_run="r1",
+                bucket_files=(1,),
+                artifacts_dir=paths.drive_artifacts,
+                local_artifacts_dir=paths.local_artifacts,
+            )
+        )

@@ -6,8 +6,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from uuid import uuid4
 
-from datasets import Dataset
 import yaml
+from datasets import Dataset
 
 from model_based_curation.split.splitter import Splitter
 
