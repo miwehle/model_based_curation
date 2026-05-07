@@ -12,7 +12,7 @@ def _dataset_roots() -> tuple[Path, Path]:
     root = Path(__file__).resolve().parents[1] / ".local_tmp" / "tests" / uuid4().hex
     drive = root / "drive_artifacts"
     local = root / "local_artifacts"
-    (drive / "datasets" / "europarl" / "d1_preprocess").mkdir(parents=True)
+    (drive / "datasets" / "europarl" / "d1").mkdir(parents=True)
     return drive, local
 
 
@@ -25,10 +25,10 @@ def test_configs_use_local_datasets_directory():
         upper_bounds=(0.5, 1.5),
         artifacts_dir=drive,
         local_artifacts_dir=local,
-    ).dataset_local_path == local / "datasets" / "europarl" / "d1_preprocess"
+    ).dataset_local_path == local / "datasets" / "europarl" / "d1"
     assert FilterRunConfig(
         dataset="europarl/d1", bucket_run="r1", artifacts_dir=drive, local_artifacts_dir=local
-    ).dataset_local_path == local / "datasets" / "europarl" / "d1_preprocess"
+    ).dataset_local_path == local / "datasets" / "europarl" / "d1"
 
 
 def test_filter_run_config_uses_bucket_run_directory():
@@ -37,8 +37,8 @@ def test_filter_run_config_uses_bucket_run_directory():
         dataset="europarl/d1", bucket_run="r1", artifacts_dir=drive, local_artifacts_dir=local
     )
 
-    assert config.bucket_dir == local / "datasets" / "europarl" / "d1_preprocess" / "loss_buckets" / "r1"
-    expected_drive_bucket_dir = drive / "datasets" / "europarl" / "d1_preprocess" / "loss_buckets" / "r1"
+    assert config.bucket_dir == local / "datasets" / "europarl" / "d1" / "loss_buckets" / "r1"
+    expected_drive_bucket_dir = drive / "datasets" / "europarl" / "d1" / "loss_buckets" / "r1"
     assert config.drive_bucket_dir == expected_drive_bucket_dir
 
 

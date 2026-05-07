@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from lab_infrastructure.dataset_artifacts import resolve_dataset
 from pydantic import ConfigDict, Field, model_validator
 from pydantic.dataclasses import dataclass
 
@@ -13,7 +12,7 @@ _LOCAL_ARTIFACTS = Path("/content/nmt_lab/artifacts")
 
 
 def _dataset_path(artifacts_dir: str | Path, dataset: str) -> Path:
-    return resolve_dataset(Path(artifacts_dir) / "datasets", dataset)
+    return Path(artifacts_dir) / "datasets" / dataset
 
 
 def _local_dataset_path(

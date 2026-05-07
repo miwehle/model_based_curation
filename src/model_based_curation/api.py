@@ -6,11 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from lab_infrastructure import write_run_config
-from lab_infrastructure.dataset_artifacts import (
-    append_dataset_register,
-    next_dataset_artifact,
-    next_numbered_path,
-)
+from lab_infrastructure.dataset_register import append_dataset_register, next_numbered_path
 
 from .config import FilterRunConfig, SplitRunConfig
 from .filter import Filter
@@ -94,7 +90,7 @@ def split(config: SplitRunConfig) -> list[Path]:
     from translator.inference import Translator
 
     dataset_path = _copy_dataset_to_local_artifacts(config)
-    drive_output_dir = next_numbered_path(config.drive_bucket_root_path)
+    drive_output_dir = next_numbered_path(config.drive_bucket_root_path, "r")
     output_dir = config.bucket_root_path / drive_output_dir.name
     _fail_if_dir_exists(output_dir, label="Local output directory")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -134,13 +130,12 @@ def split(config: SplitRunConfig) -> list[Path]:
 def filter(config: FilterRunConfig) -> Path:
     family = config.dataset.split("/", maxsplit=1)[0]
     datasets_drive_root = Path(config.artifacts_dir) / "datasets"
-    artifact = next_dataset_artifact(datasets_drive_root, family, "curate")
-    drive_output_dir = artifact.path
+    drive_output_dir = next_numbered_path(datasets_drive_root / family, "d")
+    dataset_ref = f"{family}/{drive_output_dir.name}"
     output_dir = (
         Path(config.local_artifacts_dir) / "datasets" / drive_output_dir.relative_to(datasets_drive_root)
     )
     _fail_if_dir_exists(output_dir, label="Local output directory")
-    _fail_if_dir_exists(drive_output_dir, label="Drive output directory")
 
     dataset_path = _copy_dataset_to_local_artifacts(config)
     bucket_paths = _resolve_bucket_paths(config)
@@ -166,7 +161,7 @@ def filter(config: FilterRunConfig) -> Path:
             datasets_drive_root,
             parent=config.dataset,
             operation="curate",
-            dataset_id=artifact.dataset_id,
+            dataset=dataset_ref,
             repo_root=_REPO_ROOT,
         )
         _LOG.info("Filter completed successfully")
