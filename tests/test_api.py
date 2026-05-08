@@ -150,6 +150,7 @@ def test_split_uses_next_bucket_run(monkeypatch):
     root_dir = _temp_dir("split_api_next_bucket_run")
     paths = _SplitPaths(root_dir)
     paths.drive_dir.mkdir(parents=True, exist_ok=True)
+    (paths.dataset_dir / "loss_buckets" / "r3").mkdir(parents=True, exist_ok=True)
     _write_dataset(paths.dataset_dir, [{"id": 1, "src_ids": [11], "tgt_ids": [99, 21, 0]}])
     _patch_split_runtime(monkeypatch, _StaticScorer([0.2]))
 
@@ -314,6 +315,7 @@ def test_filter_uses_next_curate_dataset(monkeypatch):
     root_dir = _temp_dir("filter_api_next_curate")
     paths = _FilterPaths(root_dir)
     paths.drive_dir.mkdir(parents=True, exist_ok=True)
+    (paths.drive_artifacts / "datasets" / "europarl" / "curated-3").mkdir(parents=True)
     _write_dataset(paths.dataset_dir, [{"id": 1, "src_ids": [11], "tgt_ids": [21]}])
     paths.bucket_dir.mkdir(parents=True, exist_ok=True)
     _write_bucket(

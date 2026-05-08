@@ -6,8 +6,8 @@ from dataclasses import asdict
 from pathlib import Path
 
 from lab_infrastructure import write_run_config
+from lab_infrastructure.artifact_paths import artifact_ref, next_named_path, next_numbered_path
 from lab_infrastructure.dataset_register import append_dataset_register
-from lab_infrastructure.dataset_schema import dataset_ref, next_named_path, next_numbered_path
 
 from .config import FilterRunConfig, SplitRunConfig
 from .filter import Filter
@@ -132,7 +132,7 @@ def filter(config: FilterRunConfig) -> Path:
     family = config.dataset.split("/", maxsplit=1)[0]
     datasets_drive_root = Path(config.artifacts_dir) / "datasets"
     drive_output_dir = next_named_path(datasets_drive_root / family, "curated")
-    curated_dataset_ref = dataset_ref(datasets_drive_root, drive_output_dir)
+    curated_dataset_ref = artifact_ref(datasets_drive_root, drive_output_dir)
     output_dir = Path(config.local_artifacts_dir) / "datasets" / Path(curated_dataset_ref)
     _fail_if_dir_exists(output_dir, label="Local output directory")
 
