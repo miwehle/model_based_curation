@@ -1,3 +1,3 @@
-dataset: europarl/d2
+dataset: europarl/preprocessed
 bucket_run: r1
 bucket_files: [8, 9, 10, 11]

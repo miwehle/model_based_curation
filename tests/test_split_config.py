@@ -12,7 +12,7 @@ def _dataset_roots() -> tuple[Path, Path]:
     root = Path(__file__).resolve().parents[1] / ".local_tmp" / "tests" / uuid4().hex
     drive = root / "drive_artifacts"
     local = root / "local_artifacts"
-    (drive / "datasets" / "europarl" / "d1").mkdir(parents=True)
+    (drive / "datasets" / "europarl" / "preprocessed").mkdir(parents=True)
     return drive, local
 
 
@@ -20,25 +20,25 @@ def test_configs_use_local_datasets_directory():
     drive, local = _dataset_roots()
 
     assert SplitRunConfig(
-        dataset="europarl/d1",
+        dataset="europarl/preprocessed",
         checkpoint="run",
         upper_bounds=(0.5, 1.5),
         artifacts_dir=drive,
         local_artifacts_dir=local,
-    ).dataset_local_path == local / "datasets" / "europarl" / "d1"
+    ).dataset_local_path == local / "datasets" / "europarl" / "preprocessed"
     assert FilterRunConfig(
-        dataset="europarl/d1", bucket_run="r1", artifacts_dir=drive, local_artifacts_dir=local
-    ).dataset_local_path == local / "datasets" / "europarl" / "d1"
+        dataset="europarl/preprocessed", bucket_run="r1", artifacts_dir=drive, local_artifacts_dir=local
+    ).dataset_local_path == local / "datasets" / "europarl" / "preprocessed"
 
 
 def test_filter_run_config_uses_bucket_run_directory():
     drive, local = _dataset_roots()
     config = FilterRunConfig(
-        dataset="europarl/d1", bucket_run="r1", artifacts_dir=drive, local_artifacts_dir=local
+        dataset="europarl/preprocessed", bucket_run="r1", artifacts_dir=drive, local_artifacts_dir=local
     )
 
-    assert config.bucket_dir == local / "datasets" / "europarl" / "d1" / "loss_buckets" / "r1"
-    expected_drive_bucket_dir = drive / "datasets" / "europarl" / "d1" / "loss_buckets" / "r1"
+    assert config.bucket_dir == local / "datasets" / "europarl" / "preprocessed" / "loss_buckets" / "r1"
+    expected_drive_bucket_dir = drive / "datasets" / "europarl" / "preprocessed" / "loss_buckets" / "r1"
     assert config.drive_bucket_dir == expected_drive_bucket_dir
 
 

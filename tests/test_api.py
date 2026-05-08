@@ -34,8 +34,8 @@ class _SplitPaths:
     def __init__(self, root_dir: Path) -> None:
         self.drive_artifacts = root_dir / "drive_artifacts"
         self.local_artifacts = root_dir / "local_artifacts"
-        self.dataset_dir = self.drive_artifacts / "datasets" / "europarl" / "d1"
-        self.local_dataset_dir = self.local_artifacts / "datasets" / "europarl" / "d1"
+        self.dataset_dir = self.drive_artifacts / "datasets" / "europarl" / "preprocessed"
+        self.local_dataset_dir = self.local_artifacts / "datasets" / "europarl" / "preprocessed"
         self.output_dir = self.local_dataset_dir / "loss_buckets" / "r1"
         self.drive_dir = self.dataset_dir / "loss_buckets" / "r1"
 
@@ -44,13 +44,13 @@ class _FilterPaths:
     def __init__(self, root_dir: Path) -> None:
         self.drive_artifacts = root_dir / "drive_artifacts"
         self.local_artifacts = root_dir / "local_artifacts"
-        self.dataset_dir = self.drive_artifacts / "datasets" / "europarl" / "d1"
-        self.local_dataset_dir = self.local_artifacts / "datasets" / "europarl" / "d1"
+        self.dataset_dir = self.drive_artifacts / "datasets" / "europarl" / "preprocessed"
+        self.local_dataset_dir = self.local_artifacts / "datasets" / "europarl" / "preprocessed"
         self.bucket_dir = self.dataset_dir / "loss_buckets" / "r1"
         self.local_bucket_dir = self.local_dataset_dir / "loss_buckets" / "r1"
         self.drive_bucket_dir = self.bucket_dir
-        self.output_dir = self.local_artifacts / "datasets" / "europarl" / "d2"
-        self.drive_dir = self.drive_artifacts / "datasets" / "europarl" / "d2"
+        self.output_dir = self.local_artifacts / "datasets" / "europarl" / "curated"
+        self.drive_dir = self.drive_artifacts / "datasets" / "europarl" / "curated"
 
 
 def _value_property(value):
@@ -120,7 +120,7 @@ def test_split_copies_buckets_to_drive(monkeypatch, caplog):
     _patch_split_runtime(monkeypatch, _StaticScorer([0.2]))
 
     config = SplitRunConfig(
-        dataset="europarl/d1",
+        dataset="europarl/preprocessed",
         checkpoint="run",
         upper_bounds=(0.5,),
         artifacts_dir=paths.drive_artifacts,
@@ -155,7 +155,7 @@ def test_split_uses_next_bucket_run(monkeypatch):
 
     output_paths = split(
         SplitRunConfig(
-            dataset="europarl/d1",
+            dataset="europarl/preprocessed",
             checkpoint="run",
             upper_bounds=(0.5,),
             artifacts_dir=paths.drive_artifacts,
@@ -173,7 +173,7 @@ def test_split_can_write_german_csv_format(monkeypatch):
     _patch_split_runtime(monkeypatch, _StaticScorer([0.2]))
 
     config = SplitRunConfig(
-        dataset="europarl/d1",
+        dataset="europarl/preprocessed",
         checkpoint="run",
         upper_bounds=(0.5,),
         artifacts_dir=paths.drive_artifacts,
@@ -207,7 +207,7 @@ def test_split_passes_bf16_setting_to_batch_scorer(monkeypatch):
     monkeypatch.setattr("model_based_curation.api.BatchSeq2SeqLossScorer", _make_scorer)
 
     config = SplitRunConfig(
-        dataset="europarl/d1",
+        dataset="europarl/preprocessed",
         checkpoint="run",
         upper_bounds=(0.5,),
         artifacts_dir=paths.drive_artifacts,
@@ -235,7 +235,7 @@ def test_filter_writes_log_and_copies_dataset_to_drive(monkeypatch, caplog):
     with caplog.at_level(logging.INFO):
         result = filter(
             FilterRunConfig(
-                dataset="europarl/d1",
+                dataset="europarl/preprocessed",
                 bucket_run="r1",
                 bucket_files=(1,),
                 artifacts_dir=paths.drive_artifacts,
@@ -250,7 +250,7 @@ def test_filter_writes_log_and_copies_dataset_to_drive(monkeypatch, caplog):
     assert (paths.drive_dir / "filter_config.yaml").is_file()
     assert (paths.drive_dir / "filter.log").is_file()
     register_text = (paths.drive_artifacts / "datasets" / "dataset_register.csv").read_text(encoding="utf-8")
-    assert ";europarl/d2;curate;europarl/d1;" in register_text
+    assert ";europarl/curated;curate;europarl/preprocessed;" in register_text
     messages = [record.getMessage() for record in caplog.records]
     assert any("Filter completed successfully" in message for message in messages)
 
@@ -273,7 +273,7 @@ def test_filter_can_use_explicit_bucket_files_subset(monkeypatch):
 
     filter(
         FilterRunConfig(
-            dataset="europarl/d1",
+            dataset="europarl/preprocessed",
             bucket_run="r1",
             bucket_files=(2,),
             artifacts_dir=paths.drive_artifacts,
@@ -298,7 +298,7 @@ def test_filter_copies_missing_local_bucket_files_from_drive(monkeypatch):
 
     filter(
         FilterRunConfig(
-            dataset="europarl/d1",
+            dataset="europarl/preprocessed",
             bucket_run="r1",
             bucket_files=(1,),
             artifacts_dir=paths.drive_artifacts,
@@ -322,7 +322,7 @@ def test_filter_uses_next_curate_dataset(monkeypatch):
 
     result = filter(
         FilterRunConfig(
-            dataset="europarl/d1",
+            dataset="europarl/preprocessed",
             bucket_run="r1",
             bucket_files=(1,),
             artifacts_dir=paths.drive_artifacts,
@@ -330,7 +330,7 @@ def test_filter_uses_next_curate_dataset(monkeypatch):
         )
     )
 
-    assert result.name == "d3"
+    assert result.name == "curated-2"
 
 
 def test_filter_fails_when_no_bucket_files_exist(monkeypatch):
@@ -341,7 +341,7 @@ def test_filter_fails_when_no_bucket_files_exist(monkeypatch):
     with pytest.raises(ValueError, match="No bucket files found"):
         filter(
             FilterRunConfig(
-                dataset="europarl/d1",
+                dataset="europarl/preprocessed",
                 bucket_run="r1",
                 artifacts_dir=paths.drive_artifacts,
                 local_artifacts_dir=paths.local_artifacts,
@@ -357,7 +357,7 @@ def test_filter_fails_when_bucket_file_is_missing_locally_and_on_drive(monkeypat
     with pytest.raises(ValueError, match=r"Bucket file not found: .*1\.csv"):
         filter(
             FilterRunConfig(
-                dataset="europarl/d1",
+                dataset="europarl/preprocessed",
                 bucket_run="r1",
                 bucket_files=(1,),
                 artifacts_dir=paths.drive_artifacts,
